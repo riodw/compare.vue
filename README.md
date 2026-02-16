@@ -41,6 +41,13 @@ pnpm dev
 pnpm build
 ```
 
+## Formatting:
+
+```sh
+pnpm format
+pnpm exec prettier --write .
+```
+
 ### Lint with [ESLint](https://eslint.org/)
 
 ```sh

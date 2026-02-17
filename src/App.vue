@@ -1,25 +1,41 @@
 <script setup lang="ts">
-import { useColorMode } from "@vueuse/core"
-
 // Initialize dark mode (defaults to dark)
 useColorMode({
   initialValue: "dark",
 })
-import AppSidebar from "@/components/AppSidebar.vue"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { Separator } from "@/components/ui/separator"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
+
+const payments = [
+  {
+    id: "m5gr84i9",
+    amount: 316,
+    status: "success",
+    email: "ken99@yahoo.com",
+  },
+  {
+    id: "3u1reuv4",
+    amount: 242,
+    status: "success",
+    email: "Abe45@gmail.com",
+  },
+  {
+    id: "derv1ws0",
+    amount: 837,
+    status: "processing",
+    email: "Monserrat44@gmail.com",
+  },
+  {
+    id: "5kma53ae",
+    amount: 874,
+    status: "success",
+    email: "Silas22@gmail.com",
+  },
+  {
+    id: "bhqecj4p",
+    amount: 721,
+    status: "failed",
+    email: "carmella@hotmail.com",
+  },
+]
 </script>
 
 <template>
@@ -57,9 +73,31 @@ import {
           <div class="bg-muted/50 aspect-video rounded-xl" />
           <div class="bg-muted/50 aspect-video rounded-xl" />
         </div>
-        <div
-          class="bg-muted/50 min-h-[100vh] flex-1 rounded-xl md:min-h-min"
-        />
+        <div class="bg-muted/50 min-h-[100vh] flex-1 rounded-xl md:min-h-min">
+          <Table>
+            <TableCaption>A list of your recent payments.</TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead class="w-[100px]">ID</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead class="text-right">Amount</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow v-for="payment in payments" :key="payment.id">
+                <TableCell class="font-medium">
+                  {{ payment.id }}
+                </TableCell>
+                <TableCell>{{ payment.status }}</TableCell>
+                <TableCell>{{ payment.email }}</TableCell>
+                <TableCell class="text-right">
+                  {{ payment.amount }}
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </SidebarInset>
   </SidebarProvider>

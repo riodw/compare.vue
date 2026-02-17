@@ -1,15 +1,10 @@
-<script lang="ts">
+<script setup lang="ts">
+import { useColorMode } from "@vueuse/core"
+
 // Initialize dark mode (defaults to dark)
-const isDark = useDark({
-  selector: "html",
-  attribute: "class",
-  valueDark: "dark",
-  valueLight: "light",
+useColorMode({
   initialValue: "dark",
 })
-</script>
-
-<script setup lang="ts">
 import AppSidebar from "@/components/AppSidebar.vue"
 import {
   Breadcrumb,
@@ -51,6 +46,8 @@ import {
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
+        </div>
+        <div class="ml-auto flex items-center gap-2 px-4">
           <ModeToggle />
         </div>
       </header>

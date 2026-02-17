@@ -2,15 +2,15 @@
 import type {
   DropdownMenuContentEmits,
   DropdownMenuContentProps,
-} from 'reka-ui'
-import type { HTMLAttributes } from 'vue'
-import { reactiveOmit } from '@vueuse/core'
+} from "reka-ui"
+import type { HTMLAttributes } from "vue"
+import { reactiveOmit } from "@vueuse/core"
 import {
   DropdownMenuContent,
   DropdownMenuPortal,
   useForwardPropsEmits,
-} from 'reka-ui'
-import { cn } from '@/lib/utils'
+} from "reka-ui"
+import { cn } from "@/lib/utils"
 
 defineOptions({
   inheritAttrs: false,
@@ -18,7 +18,7 @@ defineOptions({
 
 const props = withDefaults(
   defineProps<
-    DropdownMenuContentProps & { class?: HTMLAttributes['class'] }
+    DropdownMenuContentProps & { class?: HTMLAttributes["class"] }
   >(),
   {
     sideOffset: 4,
@@ -26,7 +26,7 @@ const props = withDefaults(
 )
 const emits = defineEmits<DropdownMenuContentEmits>()
 
-const delegatedProps = reactiveOmit(props, 'class')
+const delegatedProps = reactiveOmit(props, "class")
 
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 </script>

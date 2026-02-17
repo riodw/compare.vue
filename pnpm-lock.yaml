@@ -98,6 +98,9 @@ importers:
       unplugin-auto-import:
         specifier: ^21.0.0
         version: 21.0.0(@vueuse/core@14.2.1(vue@3.6.0-beta.5(typescript@5.9.3)))
+      unplugin-vue-components:
+        specifier: ^31.0.0
+        version: 31.0.0(vue@3.6.0-beta.5(typescript@5.9.3))
       vite:
         specifier: beta
         version: 8.0.0-beta.13(@types/node@24.10.13)(jiti@2.6.1)
@@ -1375,6 +1378,13 @@ packages:
       }
     engines: { node: ">=10" }
 
+  chokidar@5.0.0:
+    resolution:
+      {
+        integrity: sha512-TQMmc3w+5AxjpL8iIiwebF73dRDF4fBIieAqGn9RGCWaEVwQ6Fb2cGe31Yns0RRIzii5goJ1Y7xbMwo1TxMplw==,
+      }
+    engines: { node: ">= 20.19.0" }
+
   class-variance-authority@0.7.1:
     resolution:
       {
@@ -2353,6 +2363,12 @@ packages:
         integrity: sha512-lqjrjmaOoAnWfMmBPL+XNnynZh2+swxiX3WUE0s4yEHI6m+AwrK2UZOimIRl3X/4QctVqS8AiZjFqyOGrMXb/w==,
       }
 
+  obug@2.1.1:
+    resolution:
+      {
+        integrity: sha512-uTqF9MuPraAQ+IsnPf366RG4cP9RtUi7MLO1N3KEc+wb0a6yKpeL0lmk2IB1jY5KHPAlTc6T/JRdC/YqxHNwkQ==,
+      }
+
   ohash@2.0.11:
     resolution:
       {
@@ -2533,6 +2549,13 @@ packages:
         integrity: sha512-qpt8EwugBWDw2cgE2W+/3oxC+KTez2uSVR8JU9Q36TXPAGCaozfQUs59v4j4GFpWTaw0i6hAZSvOmu1J0uOEUg==,
       }
     engines: { node: ^18.17.0 || >=20.5.0 }
+
+  readdirp@5.0.0:
+    resolution:
+      {
+        integrity: sha512-9u/XQ1pvrQtYyMpZe7DXKv2p5CNvyVwzUB6uhLAnQwHMSgKMBR62lc7AHljaeteeHXn11XTAaLLUVZYVZyuRBQ==,
+      }
+    engines: { node: ">= 20.19.0" }
 
   reka-ui@2.8.0:
     resolution:
@@ -2799,6 +2822,19 @@ packages:
         integrity: sha512-5lWVjgi6vuHhJ526bI4nlCOmkCIF3nnfXkCMDeMJrtdvxTs6ZFCM8oNufGTsDbKv/tJ/xj8RpvXjRuPBZJuJog==,
       }
     engines: { node: ">=20.19.0" }
+
+  unplugin-vue-components@31.0.0:
+    resolution:
+      {
+        integrity: sha512-4ULwfTZTLuWJ7+S9P7TrcStYLsSRkk6vy2jt/WTfgUEUb0nW9//xxmrfhyHUEVpZ2UKRRwfRb8Yy15PDbVZf+Q==,
+      }
+    engines: { node: ">=20.19.0" }
+    peerDependencies:
+      "@nuxt/kit": ^3.2.2 || ^4.0.0
+      vue: ^3.0.0
+    peerDependenciesMeta:
+      "@nuxt/kit":
+        optional: true
 
   unplugin@2.3.11:
     resolution:
@@ -3872,6 +3908,10 @@ snapshots:
       ansi-styles: 4.3.0
       supports-color: 7.2.0
 
+  chokidar@5.0.0:
+    dependencies:
+      readdirp: 5.0.0
+
   class-variance-authority@0.7.1:
     dependencies:
       clsx: 2.1.1
@@ -4351,6 +4391,8 @@ snapshots:
     dependencies:
       boolbase: 1.0.0
 
+  obug@2.1.1: {}
+
   ohash@2.0.11: {}
 
   open@10.2.0:
@@ -4447,6 +4489,8 @@ snapshots:
     dependencies:
       json-parse-even-better-errors: 4.0.0
       npm-normalize-package-bin: 4.0.0
+
+  readdirp@5.0.0: {}
 
   reka-ui@2.8.0(vue@3.6.0-beta.5(typescript@5.9.3)):
     dependencies:
@@ -4611,6 +4655,19 @@ snapshots:
     dependencies:
       pathe: 2.0.3
       picomatch: 4.0.3
+
+  unplugin-vue-components@31.0.0(vue@3.6.0-beta.5(typescript@5.9.3)):
+    dependencies:
+      chokidar: 5.0.0
+      local-pkg: 1.1.2
+      magic-string: 0.30.21
+      mlly: 1.8.0
+      obug: 2.1.1
+      picomatch: 4.0.3
+      tinyglobby: 0.2.15
+      unplugin: 2.3.11
+      unplugin-utils: 0.3.1
+      vue: 3.6.0-beta.5(typescript@5.9.3)
 
   unplugin@2.3.11:
     dependencies:

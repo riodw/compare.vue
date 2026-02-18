@@ -15,8 +15,9 @@
     "format": "prettier --write --experimental-cli src/"
   },
   "dependencies": {
-    "@apollo/client": "^4.1.4",
+    "@apollo/client": "^3.14.0",
     "@tanstack/vue-table": "^8.21.3",
+    "@vue/apollo-composable": "^4.2.2",
     "@vueuse/core": "^14.2.1",
     "bootstrap": "5.3.8",
     "graphql": "^16.12.0",

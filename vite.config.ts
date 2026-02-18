@@ -15,7 +15,18 @@ export default defineConfig({
       // dts: "src/auto-imports.d.ts",
       vueTemplate: true,
       // global imports to register
-      imports: ["vue", "@vueuse/core"],
+      imports: [
+        "vue",
+        "@vueuse/core",
+        {
+          "@vue/apollo-composable": [
+            "useQuery",
+            "useLazyQuery",
+            "useMutation",
+            "useSubscription",
+          ],
+        },
+      ],
       // Auto import for module exports under directories
       dirs: ["src/composables", "src/utils", "src/stores"],
     }),

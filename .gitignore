@@ -27,6 +27,7 @@ coverage
 *.njsproj
 *.sln
 *.sw?
+AGENTS.md
 
 *.tsbuildinfo
 

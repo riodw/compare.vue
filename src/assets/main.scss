@@ -1,0 +1,40 @@
+// Variable overrides (must come before Bootstrap import)
+@import "variables";
+
+// Bootstrap
+@import "bootstrap/scss/bootstrap";
+
+// Base styles
+html,
+body {
+  text-rendering: optimizeLegibility;
+}
+
+a,
+button {
+  cursor: pointer;
+}
+
+.btn-toggle[aria-expanded="true"] i {
+  transform: rotate(90deg);
+}
+
+.btn-toggle i {
+  transition: transform 0.35s ease;
+  transform-origin: 0.5em 50%;
+}
+
+#app {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// Apple-inspired color utilities
+@each $name, $color in $custom-colors {
+  .text-#{$name} {
+    color: $color !important;
+  }
+  .bg-#{$name} {
+    background-color: $color !important;
+  }
+}

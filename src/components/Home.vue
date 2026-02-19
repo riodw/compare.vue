@@ -5,6 +5,15 @@ import {
   VariableType,
 } from "json-to-graphql-query";
 
+const NON_MODEL_ARGS = [
+  "first",
+  "last",
+  "before",
+  "after",
+  "offset",
+  "orderBy",
+];
+
 const search = ref("");
 const show_filters = ref(true);
 const fields = ref([]);
@@ -17,18 +26,17 @@ const fields_query = {
     __type: {
       __args: { name: "Query" },
       fields: {
-        __args: { includeDeprecated: true },
         name: true,
         args: {
           name: true,
           type: {
-            name: true,
             kind: true,
+            name: true,
             inputFields: {
               name: true,
               type: {
-                name: true,
                 kind: true,
+                name: true,
               },
             },
           },
@@ -43,6 +51,7 @@ const {
   loading: f_l,
   error: f_e,
 } = useQuery(gql(jtg(fields_query)));
+
 // WATCH - FILTERS LOAD
 watch(f_r, (value) => {
   console.log(value);
@@ -51,18 +60,21 @@ watch(f_r, (value) => {
     const allToolsField = value?.__type?.fields?.find(
       (field: any) => field.name === "allTools"
     );
-    f =
-      allToolsField?.args?.find((arg: any) => arg.name === "filter")?.type
-        ?.inputFields || [];
+
+    console.log("allToolsField", allToolsField.args);
+
+    //     f =
+    //       allToolsField?.args?.find((arg: any) => arg.name === "filter")?.type
+    //         ?.inputFields || [];
   } catch (error) {
     console.error(error);
     return [];
   }
 
-  f = f.filter((o: any) => !["and", "or", "not"].includes(o.name));
+  //   f = f.filter((o: any) => !["and", "or", "not"].includes(o.name));
 
-  console.log("field_schema", f);
-  fields.value = f;
+  //   console.log("field_schema", f);
+  //   fields.value = f;
 });
 
 //

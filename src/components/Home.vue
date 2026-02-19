@@ -27,16 +27,35 @@ const fields_query = {
       __args: { name: "Query" },
       fields: {
         name: true,
+        description: true,
         args: {
           name: true,
+          description: true,
+          defaultValue: true,
           type: {
             kind: true,
             name: true,
+            description: true,
             inputFields: {
               name: true,
+              description: true,
+              defaultValue: true,
               type: {
                 kind: true,
                 name: true,
+                description: true,
+                ofType: {
+                  kind: true,
+                  name: true,
+                  ofType: {
+                    kind: true,
+                    name: true,
+                    ofType: {
+                      kind: true,
+                      name: true,
+                    },
+                  },
+                },
               },
             },
           },
@@ -52,29 +71,52 @@ const {
   error: f_e,
 } = useQuery(gql(jtg(fields_query)));
 
+let all_tools_args: any[] | null = null;
+
 // WATCH - FILTERS LOAD
 watch(f_r, (value) => {
-  console.log(value);
-  let f = [];
   try {
     const allToolsField = value?.__type?.fields?.find(
       (field: any) => field.name === "allTools"
     );
 
-    console.log("allToolsField", allToolsField.args);
-
-    //     f =
-    //       allToolsField?.args?.find((arg: any) => arg.name === "filter")?.type
-    //         ?.inputFields || [];
+    all_tools_args = allToolsField.args;
   } catch (error) {
     console.error(error);
-    return [];
+    fields.value = [];
   }
 
-  //   f = f.filter((o: any) => !["and", "or", "not"].includes(o.name));
+  // Strip __typename recursively
+  const stripTypename = (obj: any): any => {
+    if (Array.isArray(obj)) return obj.map(stripTypename);
+    if (obj && typeof obj === "object") {
+      const { __typename, ...rest } = obj;
+      for (const key in rest) {
+        rest[key] = stripTypename(rest[key]);
+      }
+      return rest;
+    }
+    return obj;
+  };
 
-  //   console.log("field_schema", f);
-  //   fields.value = f;
+  all_tools_args = stripTypename(all_tools_args);
+
+  // top level args
+  const topLevelArgs = all_tools_args?.filter(
+    (arg: any) => !NON_MODEL_ARGS.includes(arg.name)
+  );
+  console.log("topLevelArgs", topLevelArgs);
+
+  // clean array
+  let cleanArgs = {};
+  // let cleanArgs: String[] = topLevelArgs?.map((arg: any) => arg.name) || [];
+  // console.log("cleanArgs", cleanArgs);
+  topLevelArgs.forEach((arg: any) => {
+    let name = arg.name.split("_");
+    if (cleanArgs[name[0]]?.length) cleanArgs[name[0]].push(name[1]);
+    else cleanArgs[name[0]] = [name[1]];
+  });
+  console.log(cleanArgs);
 });
 
 //
@@ -97,6 +139,17 @@ watch(f_r, (value) => {
 //
 //
 //
+
+// FILTERED FIELDS
+function searchFields() {
+  if (search_fields.value)
+    return fields.value.filter((o: any) =>
+      o.name.toLowerCase().includes(search_fields.value.toLowerCase())
+    );
+  return fields.value; // .filter(
+  //   (o: any) => !filters.value.some((s: any) => s.name === o.name),
+  // );
+}
 
 // ADD FILTER
 function addFilter(f: any) {

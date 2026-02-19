@@ -18,7 +18,8 @@ const search = ref("");
 const show_filters = ref(true);
 const fields = ref([]);
 const search_fields = ref("");
-const filters = ref<{ [key: string]: any }>({});
+// const filters = ref<{ [key: string]: any }>({});
+const filters = ref([]);
 const sorts = ref([]);
 
 const fields_query = {
@@ -71,16 +72,13 @@ const {
   error: f_e,
 } = useQuery(gql(jtg(fields_query)));
 
-let all_tools_args: any[] | null = null;
-
 // WATCH - FILTERS LOAD
 watch(f_r, (value) => {
+  let f = [];
   try {
-    const allToolsField = value?.__type?.fields?.find(
+    f = value?.__type?.fields?.find(
       (field: any) => field.name === "allTools"
-    );
-
-    all_tools_args = allToolsField.args;
+    ).args;
   } catch (error) {
     console.error(error);
     fields.value = [];
@@ -99,24 +97,36 @@ watch(f_r, (value) => {
     return obj;
   };
 
-  all_tools_args = stripTypename(all_tools_args);
+  f = stripTypename(f);
 
   // top level args
-  const topLevelArgs = all_tools_args?.filter(
-    (arg: any) => !NON_MODEL_ARGS.includes(arg.name)
-  );
-  console.log("topLevelArgs", topLevelArgs);
+  fields.value = f?.filter((arg: any) => !NON_MODEL_ARGS.includes(arg.name));
+  console.dir(fields.value);
+  // console.log("topLevelArgs", topLevelArgs);
 
   // clean array
-  let cleanArgs = {};
-  // let cleanArgs: String[] = topLevelArgs?.map((arg: any) => arg.name) || [];
-  // console.log("cleanArgs", cleanArgs);
-  topLevelArgs.forEach((arg: any) => {
-    let name = arg.name.split("_");
-    if (cleanArgs[name[0]]?.length) cleanArgs[name[0]].push(name[1]);
-    else cleanArgs[name[0]] = [name[1]];
-  });
-  console.log(cleanArgs);
+  // let cleanArgs = [];
+  // // let cleanArgs: String[] = topLevelArgs?.map((arg: any) => arg.name) || [];
+  // // console.log("cleanArgs", cleanArgs);
+  // topLevelArgs.forEach((arg: any) => {
+  //   let name = arg.name.split("_");
+  //   // is first?
+  //   if (name[1] === undefined) {
+  //     // let fixed_filter_name = name[0].replace(/([A-Z])/g, " $1").trim();
+  //     // arg.fixed_name = "is";
+  //     cleanArgs.push({
+  //       name: name[0],
+  //       // fixed_name: fixed_filter_name,
+  //       options: [arg],
+  //     });
+  //   } else {
+  //     // arg.fixed_name = name[1];
+  //     // find existing
+  //     let existing = cleanArgs.find((o: any) => o.name === name[0]);
+  //     if (existing) existing.options.push(arg);
+  //   }
+  // });
+  // console.log(cleanArgs);
 });
 
 //
@@ -139,39 +149,95 @@ watch(f_r, (value) => {
 //
 //
 //
+// Find top level filters
+function topLevelFilters() {
+  return fields.value.filter((arg: any) => !arg.name.includes("_"));
+}
 
 // FILTERED FIELDS
 function searchFields() {
-  if (search_fields.value)
-    return fields.value.filter((o: any) =>
-      o.name.toLowerCase().includes(search_fields.value.toLowerCase())
+  const search = search_fields.value.toLowerCase();
+  return topLevelFilters()
+    .filter((arg: any) => arg.name.toLowerCase().includes(search))
+    .filter(
+      (arg: any) => !filters.value.some((f: any) => f.name === arg.name)
     );
-  return fields.value; // .filter(
-  //   (o: any) => !filters.value.some((s: any) => s.name === o.name),
-  // );
 }
 
 // ADD FILTER
 function addFilter(f: any) {
-  const new_field = {
-    selected: f.type.inputFields[0],
-    value: "",
-  };
-
-  // check if already added
-  if (filters.value[f.name])
-    return filters.value[f.name].fields.push(new_field);
-
-  // add new filter
-  filters.value[f.name] = {
+  filters.value.push({
     ...f,
-    fields: [new_field],
-  };
+    select: "",
+  });
 }
 
-function name(name: string) {
-  return name.match(/(?<!\p{L}\p{M}*)\p{L}/gu)?.join("");
+function addNextFilter(k_name: String = "") {
+  if (!Object.keys(groupedFilters()).includes("is"))
+    return addFilter(findField([k_name, "is"]));
+  // const options = Object.keys(groupedFilters(fields.value));
+  // console.log("options", options);
+  // const next_option = fields.value.find(
+
+  // )
+  // addFilter(f);
 }
+
+// Grouped filters by name, with options
+function groupedFilters(list = filters.value) {
+  const grouped: { [key: string]: any } = {};
+  list.forEach((arg: any) => {
+    const name = arg.name.split("_");
+    if (!grouped[name[0]]) grouped[name[0]] = {};
+    if (!name[1]) name[1] = "is";
+
+    let start_value: any = "";
+    if (arg.select) start_value = arg.select;
+    else if (arg.type.name === "Boolean") start_value = true;
+    grouped[name[0]][name[1]] = start_value;
+  });
+  return grouped;
+}
+
+function translateFilterName(k_name) {
+  if (k_name[1] === "is") return k_name[0];
+  return k_name.join("_");
+}
+
+function findField(k_name) {
+  k_name = translateFilterName(k_name);
+  // console.log("findField", k_name);
+  return fields.value.find((arg: any) => arg.name === k_name);
+}
+
+function findFilter(k_name) {
+  k_name = translateFilterName(k_name);
+  // console.log("findFilter", k_name);
+  return filters.value.find((arg: any) => arg.name === k_name);
+}
+
+function findFieldType(k_name) {
+  if (k_name[1] === "is") return "String";
+  return findField(k_name)?.type?.name;
+}
+
+function findAddFilter(k_name) {
+  const f = findField(k_name);
+  k_name = translateFilterName(k_name);
+  // console.log("addFilter", k_name);
+  if (filters.value.filter((f: any) => f.name === k_name).length) return;
+  addFilter(f);
+}
+
+function removeFilter(k_name) {
+  k_name = translateFilterName(k_name);
+  // console.log("removeFilter", k_name);
+  filters.value = filters.value.filter((f: any) => f.name !== k_name);
+}
+
+// function name(name: string) {
+//   return name.match(/(?<!\p{L}\p{M}*)\p{L}/gu)?.join("");
+// }
 
 function camel(s: string) {
   return s.replace(/([A-Z])/g, " $1").trim();
@@ -238,7 +304,7 @@ function camel(s: string) {
             <div class="d-flex align-items-center justify-content-between">
               <h5 class="m-0">
                 <b>
-                  <!-- {{ filters.length }}  -->
+                  {{ filters.length }}
                   Filters
                 </b>
               </h5>
@@ -264,79 +330,84 @@ function camel(s: string) {
                       ref="searchFilters"
                       v-model="search_fields"
                       class="form-control py-1"
-                      type="email"
-                      :placeholder="fields.length + ' Filters...'"
+                      type="text"
+                      :placeholder="topLevelFilters().length + ' Filters...'"
                     />
                   </li>
-                  <!-- <li v-for="f in searchFields()" :key="f.name">
-                        <button
-                          class="dropdown-item text-capitalize"
-                          @click="addFilter(f)"
-                        >
-                          {{ camel(f.name) }}
-                        </button>
-                      </li> -->
+                  <li v-for="f in searchFields()" :key="f.name">
+                    <button
+                      class="dropdown-item text-capitalize"
+                      @click="addFilter(f)"
+                    >
+                      {{ camel(f.name) }}
+                    </button>
+                  </li>
                 </ul>
               </div>
               <!-- <button class="btn btn-outline-danger btn-sm">Remove All</button> -->
             </div>
             <!-- active -->
             <div class="d-flex border-top flex-wrap pt-1 mt-2">
-              <div v-for="(f, k) in filters" :key="k" class="d-flex m-1">
+              <div
+                v-for="(v, k) in groupedFilters()"
+                :key="k"
+                class="d-flex m-1"
+              >
                 <div>
                   <button
                     class="btn btn-outline-primary btn-sm h-100 text-capitalize rounded-start-pill"
-                    @click="addFilter(f)"
+                    @click="addNextFilter(k)"
                   >
-                    {{ camel(k.toString()) }}
+                    {{ camel(k) }}
                   </button>
                 </div>
                 <div class="d-flex flex-column">
                   <!-- TODO: problem with overlapping keys -->
                   <div
-                    v-for="(ff, index) in f.fields"
-                    :key="index"
-                    class="input-group flex-nowrap text-nowrap w-auto mw-100"
+                    v-for="(vv, kk) in v"
+                    :key="kk"
+                    class="input-group flex-nowrap text-nowrap w-auto mw-100 h-100"
                   >
                     <select
-                      v-model="ff.selected"
+                      @change="
+                        findAddFilter([k, $event.target.value]);
+                        removeFilter([k, kk]);
+                      "
                       class="btn btn-outline-secondary btn-sm text-capitalize rounded-0 border-start-0"
                     >
                       <option
-                        v-for="o in f.type.inputFields"
-                        :key="o.name"
-                        :value="o"
+                        v-for="(gfv, gfk) in groupedFilters(fields)[k]"
+                        :key="gfk"
+                        :value="gfk"
+                        :selected="kk === gfk"
                       >
-                        {{ camel(o.name) }}
+                        {{ camel(gfk) }}
                       </option>
                     </select>
                     <input
-                      v-if="ff.selected.type.name === 'String'"
-                      v-model="ff.value"
-                      :placeholder="camel(ff.selected.type.name) + '...'"
-                      class="form-control border-secondary d-inline-flex flex-grow-0 lh-1"
+                      v-if="findFieldType([k, kk]) === 'String'"
+                      :placeholder="findFieldType([k, kk]) + '...'"
+                      v-model="findFilter([k, kk]).select"
+                      class="form-control border-secondary d-inline-flex flex-grow-0 lh-1 w-auto"
+                      type="text"
                       style="min-width: 110px; font-size: 0.875rem"
                     />
-                    <!-- @keyup.enter="get(f)" -->
+                    <!-- @keyup.enter="get(f)"
                     <select
                       v-else-if="ff.selected.type.name === 'Boolean'"
                       v-model="ff.value"
                       class="btn btn-outline-secondary btn-sm"
                     >
-                      <!-- @change="get(f)" -->
+                      @change="get(f)"
                       <option disabled value="">
                         {{ camel(ff.selected.type.name) }}...
                       </option>
                       <option :value="true">True</option>
                       <option :value="false">False</option>
-                    </select>
+                    </select> -->
                     <button
                       class="btn btn-outline-danger btn-sm rounded-end-pill ps-1"
-                      @click="
-                        f.fields.length === 1
-                          ? delete filters[k]
-                          : f.fields.splice(index, 1)
-                      "
+                      @click="removeFilter([k, kk])"
                     >
                       <i class="bi bi-trash3"></i>
                     </button>
@@ -382,6 +453,14 @@ function camel(s: string) {
         </ul>
       </div>
       <!-- DATA -->
+      <pre>
+        {{ groupedFilters() }}
+       </pre
+      >
+      <pre>
+        {{ filters }}
+       </pre
+      >
       <div>
         <!-- <template v-if="a_l">
               <h5 class="alert alert-primary text-center m-0">Loading...</h5>

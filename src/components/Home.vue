@@ -1,10 +1,90 @@
 <script setup lang="ts">
+import gql from "graphql-tag";
+import {
+  jsonToGraphQLQuery as jtg,
+  VariableType,
+} from "json-to-graphql-query";
+
 const search = ref("");
 const show_filters = ref(true);
 const fields = ref([]);
 const search_fields = ref("");
 const filters = ref<{ [key: string]: any }>({});
 const sorts = ref([]);
+
+const fields_query = {
+  query: {
+    __type: {
+      __args: { name: "Query" },
+      fields: {
+        __args: { includeDeprecated: true },
+        name: true,
+        args: {
+          name: true,
+          type: {
+            name: true,
+            kind: true,
+            inputFields: {
+              name: true,
+              type: {
+                name: true,
+                kind: true,
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
+const {
+  result: f_r,
+  loading: f_l,
+  error: f_e,
+} = useQuery(gql(jtg(fields_query)));
+// WATCH - FILTERS LOAD
+watch(f_r, (value) => {
+  console.log(value);
+  let f = [];
+  try {
+    const allToolsField = value?.__type?.fields?.find(
+      (field: any) => field.name === "allTools"
+    );
+    f =
+      allToolsField?.args?.find((arg: any) => arg.name === "filter")?.type
+        ?.inputFields || [];
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+
+  f = f.filter((o: any) => !["and", "or", "not"].includes(o.name));
+
+  console.log("field_schema", f);
+  fields.value = f;
+});
+
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
 
 // ADD FILTER
 function addFilter(f: any) {
@@ -168,7 +248,6 @@ function camel(s: string) {
                     <input
                       v-if="ff.selected.type.name === 'String'"
                       v-model="ff.value"
-                      v-autowidth
                       :placeholder="camel(ff.selected.type.name) + '...'"
                       class="form-control border-secondary d-inline-flex flex-grow-0 lh-1"
                       style="min-width: 110px; font-size: 0.875rem"

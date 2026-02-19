@@ -31,7 +31,7 @@ import {
 const httpLink = createHttpLink({
   // You should use an absolute URL here
   uri:
-    (PROD ? "https://compare-django.onrender.com" : "http://localhost:8000") +
+    (PROD ? "https://compare-django.onrender.com" : "http://127.0.0.1:8000") +
     "/graphql/",
 });
 // Cache implementation

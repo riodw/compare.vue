@@ -13,7 +13,7 @@ const env = [
   ["SSR", SSR],
   ["VITE_CLERK_PUBLISHABLE_KEY", CLERK],
 ];
-console.log("env", env);
+// console.log("env", env);
 
 import { createApp } from "vue";
 import App from "./App.vue";
@@ -54,3 +54,4 @@ const app = createApp(App);
 app.provide(DefaultApolloClient, apolloClient);
 
 app.mount("#app");
+window.app = app;

@@ -77,7 +77,7 @@ watch(f_r, (value) => {
   let f = [];
   try {
     f = value?.__type?.fields?.find(
-      (field: any) => field.name === "allTools"
+      (field: any) => field.name === "tools"
     ).args;
   } catch (error) {
     console.error(error);
@@ -101,32 +101,7 @@ watch(f_r, (value) => {
 
   // top level args
   fields.value = f?.filter((arg: any) => !NON_MODEL_ARGS.includes(arg.name));
-  console.dir(fields.value);
   // console.log("topLevelArgs", topLevelArgs);
-
-  // clean array
-  // let cleanArgs = [];
-  // // let cleanArgs: String[] = topLevelArgs?.map((arg: any) => arg.name) || [];
-  // // console.log("cleanArgs", cleanArgs);
-  // topLevelArgs.forEach((arg: any) => {
-  //   let name = arg.name.split("_");
-  //   // is first?
-  //   if (name[1] === undefined) {
-  //     // let fixed_filter_name = name[0].replace(/([A-Z])/g, " $1").trim();
-  //     // arg.fixed_name = "is";
-  //     cleanArgs.push({
-  //       name: name[0],
-  //       // fixed_name: fixed_filter_name,
-  //       options: [arg],
-  //     });
-  //   } else {
-  //     // arg.fixed_name = name[1];
-  //     // find existing
-  //     let existing = cleanArgs.find((o: any) => o.name === name[0]);
-  //     if (existing) existing.options.push(arg);
-  //   }
-  // });
-  // console.log(cleanArgs);
 });
 
 //
@@ -173,7 +148,7 @@ function addFilter(f: any) {
 }
 
 function addNextFilter(k_name: String = "") {
-  if (!Object.keys(groupedFilters()).includes("is"))
+  if (!Object.keys(groupedFilters()[k_name]).includes("is"))
     return addFilter(findField([k_name, "is"]));
   // const options = Object.keys(groupedFilters(fields.value));
   // console.log("options", options);
@@ -217,8 +192,24 @@ function findFilter(k_name) {
 }
 
 function findFieldType(k_name) {
-  if (k_name[1] === "is") return "String";
   return findField(k_name)?.type?.name;
+}
+
+function findFieldTypeInput(k_name) {
+  let type = findFieldType(k_name);
+  // console.log("findFieldType", k_name, type);
+  switch (type) {
+    case "String":
+      return "text";
+    case "Int":
+    case "Decimal":
+    case "Float":
+      return "number";
+    // case "Boolean":
+    //   return "checkbox";
+    default:
+      return null;
+  }
 }
 
 function findAddFilter(k_name) {
@@ -234,6 +225,71 @@ function removeFilter(k_name) {
   // console.log("removeFilter", k_name);
   filters.value = filters.value.filter((f: any) => f.name !== k_name);
 }
+
+//  QUERY DATA
+//  QUERY DATA
+//  QUERY DATA
+
+const q = {
+  query: {
+    __name: "MyQuery",
+    // https://github.com/vkolgi/json-to-graphql-query#query-with-variables
+    __variables: {
+      // test: 'String = ""',
+      // filter: "HouseFilterSetClassFilterInputType = {}",
+    },
+    tools: {
+      __args: {
+        // filter: new VariableType("filter"),
+        // filter: {
+        //   name: {
+        //     icontains: "smith",
+        //   },
+        // },
+      },
+      edges: {
+        node: {
+          id: true,
+          name: true,
+          brand: {
+            name: true,
+          },
+        },
+      },
+      count: true,
+      counts: true,
+    },
+  },
+};
+
+// hard-code test filter
+// q.query.houses.__args.filter["name"] = {
+//   icontains: "smith",
+// };
+
+// https://v4.apollo.vuejs.org/guide-composable/query.html#refetch-lazy-query
+const {
+  result: a_r,
+  loading: a_l,
+  error: a_e,
+  // load: a_load,
+  refetch: a_get,
+} = useQuery(gql(jtg(q)), {
+  // filter: {
+  //   name: {
+  //     icontains: "s",
+  //   },
+  //   address: {
+  //     street: {
+  //       icontains: "221",
+  //     },
+  //   },
+  // },
+});
+
+watch(a_r, (value) => {
+  console.log(value);
+});
 
 // function name(name: string) {
 //   return name.match(/(?<!\p{L}\p{M}*)\p{L}/gu)?.join("");
@@ -385,26 +441,27 @@ function camel(s: string) {
                       </option>
                     </select>
                     <input
-                      v-if="findFieldType([k, kk]) === 'String'"
-                      :placeholder="findFieldType([k, kk]) + '...'"
+                      v-if="
+                        ['text', 'number'].includes(
+                          findFieldTypeInput([k, kk])
+                        )
+                      "
                       v-model="findFilter([k, kk]).select"
+                      :placeholder="findFieldType([k, kk]) + '...'"
+                      :type="findFieldTypeInput([k, kk])"
                       class="form-control border-secondary d-inline-flex flex-grow-0 lh-1 w-auto"
-                      type="text"
                       style="min-width: 110px; font-size: 0.875rem"
                     />
-                    <!-- @keyup.enter="get(f)"
+                    <!-- @keyup.enter="get(f)" -->
                     <select
-                      v-else-if="ff.selected.type.name === 'Boolean'"
-                      v-model="ff.value"
+                      v-else-if="findFieldType([k, kk]) === 'Boolean'"
+                      v-model="findFilter([k, kk]).select"
                       class="btn btn-outline-secondary btn-sm"
                     >
-                      @change="get(f)"
-                      <option disabled value="">
-                        {{ camel(ff.selected.type.name) }}...
-                      </option>
+                      <option value="">Select...</option>
                       <option :value="true">True</option>
                       <option :value="false">False</option>
-                    </select> -->
+                    </select>
                     <button
                       class="btn btn-outline-danger btn-sm rounded-end-pill ps-1"
                       @click="removeFilter([k, kk])"

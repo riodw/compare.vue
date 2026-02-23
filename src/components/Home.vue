@@ -84,19 +84,6 @@ watch(f_r, (value) => {
     fields.value = [];
   }
 
-  // Strip __typename recursively
-  const stripTypename = (obj: any): any => {
-    if (Array.isArray(obj)) return obj.map(stripTypename);
-    if (obj && typeof obj === "object") {
-      const { __typename, ...rest } = obj;
-      for (const key in rest) {
-        rest[key] = stripTypename(rest[key]);
-      }
-      return rest;
-    }
-    return obj;
-  };
-
   f = stripTypename(f);
 
   // top level args
@@ -112,18 +99,19 @@ watch(f_r, (value) => {
 //
 //
 //
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
+// Strip __typename recursively
+const stripTypename = (obj: any): any => {
+  if (Array.isArray(obj)) return obj.map(stripTypename);
+  if (obj && typeof obj === "object") {
+    const { __typename, ...rest } = obj;
+    for (const key in rest) {
+      rest[key] = stripTypename(rest[key]);
+    }
+    return rest;
+  }
+  return obj;
+};
+
 // Find top level filters
 function topLevelFilters() {
   return fields.value.filter((arg: any) => !arg.name.includes("_"));
@@ -226,6 +214,9 @@ function removeFilter(k_name) {
   filters.value = filters.value.filter((f: any) => f.name !== k_name);
 }
 
+function getEdges() {
+  return a_r.value?.tools;
+}
 //  QUERY DATA
 //  QUERY DATA
 //  QUERY DATA
@@ -240,7 +231,7 @@ const q = {
     },
     tools: {
       __args: {
-        // filter: new VariableType("filter"),
+        // price: new VariableType("price"),
         // filter: {
         //   name: {
         //     icontains: "smith",
@@ -262,10 +253,9 @@ const q = {
   },
 };
 
-// hard-code test filter
-// q.query.houses.__args.filter["name"] = {
-//   icontains: "smith",
-// };
+// Create BOTH as reactive refs
+const queryDoc = ref(gql(jtg(q)));
+const queryVariables = ref<any>({});
 
 // https://v4.apollo.vuejs.org/guide-composable/query.html#refetch-lazy-query
 const {
@@ -273,23 +263,45 @@ const {
   loading: a_l,
   error: a_e,
   // load: a_load,
-  refetch: a_get,
-} = useQuery(gql(jtg(q)), {
-  // filter: {
-  //   name: {
-  //     icontains: "s",
-  //   },
-  //   address: {
-  //     street: {
-  //       icontains: "221",
-  //     },
-  //   },
-  // },
-});
+  refetch: a_get, // Kept in case manually needed elsewhere
+} = useQuery(queryDoc, queryVariables);
 
 watch(a_r, (value) => {
-  console.log(value);
+  console.log(stripTypename(value));
 });
+
+function get() {
+  // 1. Reset dynamic variables and arguments
+  q.query.__variables = {};
+  q.query.tools.__args = {};
+
+  // 2. Build the variables object
+  const newVariables: any = {};
+  filters.value.forEach((f: any) => {
+    if (f.select !== undefined && f.select !== "") {
+      // Find the GraphQL type (default to String if not present)
+      let gqType = "String";
+      if (f.type && f.type.name) {
+        gqType = f.type.name;
+      }
+
+      // 3. Define the variable signature using its graphQL type
+      q.query.__variables[f.name] = gqType;
+
+      // 4. Inject it into the tools query arguments
+      q.query.tools.__args[f.name] = new VariableType(f.name);
+
+      // 5. Save the actual value to send in the variables payload
+      newVariables[f.name] = f.select;
+    }
+  });
+
+  // 6. Build the new DocumentNode. Since it's a ref, useQuery reacts to it!
+  queryDoc.value = gql(jtg(q));
+
+  // 7. Update the variables. useQuery will automatically detect these changes and fetch
+  queryVariables.value = newVariables;
+}
 
 // function name(name: string) {
 //   return name.match(/(?<!\p{L}\p{M}*)\p{L}/gu)?.join("");
@@ -314,12 +326,9 @@ function camel(s: string) {
       </nav>
       <!-- TITLE -->
       <div class="d-flex align-items-end justify-content-between mb-3">
-        <h1 class="m-0">
-          <!-- {{ a_r?.houses.count || "--" }} -->
-          -- Properties
-        </h1>
+        <h1 class="m-0">{{ a_r?.tools.count || "--" }} Tools</h1>
         <div>
-          <button
+          <!-- <button
             data-bs-toggle="modal"
             data-bs-target="#exampleModal"
             class="btn btn-primary"
@@ -327,7 +336,7 @@ function camel(s: string) {
             <i class="bi bi-plus-lg me-1"></i>
             <span class="d-none d-sm-inline">New</span>
             Property
-          </button>
+          </button> -->
         </div>
       </div>
       <!-- SEARCH -->
@@ -350,7 +359,6 @@ function camel(s: string) {
           </button>
         </div>
       </div>
-      <!-- <pre>{{ filters }}</pre> -->
       <!-- FILTERS -->
       <div v-if="!f_e" class="card mb-3">
         <ul v-if="show_filters" class="list-group list-group-flush">
@@ -403,7 +411,10 @@ function camel(s: string) {
               <!-- <button class="btn btn-outline-danger btn-sm">Remove All</button> -->
             </div>
             <!-- active -->
-            <div class="d-flex border-top flex-wrap pt-1 mt-2">
+            <div
+              v-if="filters.length"
+              class="d-flex border-top flex-wrap pt-1 mt-2"
+            >
               <div
                 v-for="(v, k) in groupedFilters()"
                 :key="k"
@@ -428,6 +439,7 @@ function camel(s: string) {
                       @change="
                         findAddFilter([k, $event.target.value]);
                         removeFilter([k, kk]);
+                        get();
                       "
                       class="btn btn-outline-secondary btn-sm text-capitalize rounded-0 border-start-0"
                     >
@@ -451,12 +463,13 @@ function camel(s: string) {
                       :type="findFieldTypeInput([k, kk])"
                       class="form-control border-secondary d-inline-flex flex-grow-0 lh-1 w-auto"
                       style="min-width: 110px; font-size: 0.875rem"
+                      @keyup.enter="get()"
                     />
-                    <!-- @keyup.enter="get(f)" -->
                     <select
                       v-else-if="findFieldType([k, kk]) === 'Boolean'"
                       v-model="findFilter([k, kk]).select"
                       class="btn btn-outline-secondary btn-sm"
+                      @change="get()"
                     >
                       <option value="">Select...</option>
                       <option :value="true">True</option>
@@ -464,7 +477,10 @@ function camel(s: string) {
                     </select>
                     <button
                       class="btn btn-outline-danger btn-sm rounded-end-pill ps-1"
-                      @click="removeFilter([k, kk])"
+                      @click="
+                        removeFilter([k, kk]);
+                        get();
+                      "
                     >
                       <i class="bi bi-trash3"></i>
                     </button>
@@ -519,91 +535,86 @@ function camel(s: string) {
        </pre
       >
       <div>
-        <!-- <template v-if="a_l">
-              <h5 class="alert alert-primary text-center m-0">Loading...</h5>
-            </template>
-            <h5 v-else-if="a_e" class="alert alert-danger text-center m-0">
-              {{ a_e }}
-            </h5> -->
-        <div v-if="true" class="table-responsive">
+        <template v-if="a_l">
+          <h5 class="alert alert-primary text-center m-0">Loading...</h5>
+        </template>
+        <h5 v-else-if="a_e" class="alert alert-danger text-center m-0">
+          {{ a_e }}
+        </h5>
+        <div v-else-if="getEdges()?.count" class="table-responsive">
           <table class="table table-hover m-0">
-            <!-- <thead>
-          <tr class="table-secondary">
-            <th>&nbsp;</th>
-            <th>Name</th>
-            <th>Last Stay</th>
-            <th class="text-end"></th>
-          </tr>
-        </thead> -->
+            <thead>
+              <tr class="table-secondary">
+                <th>&nbsp;</th>
+                <th>Name</th>
+                <th>Price</th>
+                <th class="text-end"></th>
+              </tr>
+            </thead>
             <tbody>
-              <!-- <tr v-for="h in a_r?.houses?.edges" :key="h.node.id">
-                    <td class="text-end ps-0">
-                      <div
-                        class="text-center overflow-hidden rounded-4 bg-warning text-uppercase ms-auto"
-                        style="width: 3rem; height: 3rem; line-height: 3rem"
-                      >
-                        {{ name(h.node.name) }}
-                      </div>
-                    </td>
-                    <td>
-                      <b>
-                        {{ h.node.name }}
-                      </b>
-                      <div class="text-secondary">
-                        {{ h.node.address.street }}, {{ h.node.address.city }},
-                        {{ h.node.address.state }}
-                        {{ h.node.address.zip }}
-                      </div>
-                    </td>
-                    <td class="d-none d-sm-table-cell">
-                      <i>
-                        Wed. Jun 12, 2015
-                        <div class="text-secondary">Thu. Jun 22, 2015</div>
-                      </i>
-                    </td>
-                    <td class="text-end d-none d-md-table-cell">
-                      <button class="btn btn-secondary btn-sm">
-                        <i class="bi bi-pencil-fill"></i>
-                        &nbsp;Edit
-                      </button>
-                      <button class="btn btn-danger btn-sm ms-1">
-                        <i class="bi bi-trash3-fill"></i>
-                        &nbsp;Remove
-                      </button>
-                    </td>
-                  </tr> -->
-              <!-- <tr>
-            <td class="text-end">
-              <div
-                class="text-center overflow-hidden rounded-4 bg-warning ms-auto"
-                style="width: 3rem; height: 3rem; line-height: 3rem"
-              >
-                SS
-              </div>
-            </td>
-            <td>
-              <b>Sandy Shores</b>
-              <div class="text-secondary">
-                3726 Bayberry Drive, Danielsville, PA 18038
-              </div>
-            </td>
-            <td class="d-none d-sm-table-cell">
-              <i>
-                Wed. Jun 12, 2015
-                <div class="text-secondary">Thu. Jun 22, 2015</div>
-              </i>
-            </td>
-            <td class="text-end d-none d-md-table-cell">
-              <button class="btn btn-secondary btn-sm">
-                <i class="bi bi-pencil-fill"></i>
-                &nbsp;Edit
-              </button>
-              <button class="btn btn-danger btn-sm ms-1">
-                <i class="bi bi-trash3-fill"></i>
-                &nbsp;Remove
-              </button>
-            </td>
-          </tr> -->
+              <tr v-for="h in getEdges()?.edges" :key="h.node.id">
+                <td class="text-end ps-0">
+                  <div
+                    class="text-center overflow-hidden rounded-4 bg-warning text-uppercase ms-auto"
+                    style="width: 3rem; height: 3rem; line-height: 3rem"
+                  >
+                    <!-- {{ name(h.node.name) }} -->
+                  </div>
+                </td>
+                <td>
+                  <b>
+                    <!-- {{ h.node.name }} -->
+                  </b>
+                </td>
+                <td class="d-none d-sm-table-cell">
+                  <i>
+                    Wed. Jun 12, 2015
+                    <div class="text-secondary">Thu. Jun 22, 2015</div>
+                  </i>
+                </td>
+                <td class="text-end d-none d-md-table-cell">
+                  <button class="btn btn-secondary btn-sm">
+                    <i class="bi bi-pencil-fill"></i>
+                    &nbsp;Edit
+                  </button>
+                  <button class="btn btn-danger btn-sm ms-1">
+                    <i class="bi bi-trash3-fill"></i>
+                    &nbsp;Remove
+                  </button>
+                </td>
+              </tr>
+              <tr>
+                <td class="text-end">
+                  <div
+                    class="text-center overflow-hidden rounded-4 bg-warning ms-auto"
+                    style="width: 3rem; height: 3rem; line-height: 3rem"
+                  >
+                    SS
+                  </div>
+                </td>
+                <td>
+                  <b>Sandy Shores</b>
+                  <div class="text-secondary">
+                    3726 Bayberry Drive, Danielsville, PA 18038
+                  </div>
+                </td>
+                <td class="d-none d-sm-table-cell">
+                  <i>
+                    Wed. Jun 12, 2015
+                    <div class="text-secondary">Thu. Jun 22, 2015</div>
+                  </i>
+                </td>
+                <td class="text-end d-none d-md-table-cell">
+                  <button class="btn btn-secondary btn-sm">
+                    <i class="bi bi-pencil-fill"></i>
+                    &nbsp;Edit
+                  </button>
+                  <button class="btn btn-danger btn-sm ms-1">
+                    <i class="bi bi-trash3-fill"></i>
+                    &nbsp;Remove
+                  </button>
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -611,28 +622,28 @@ function camel(s: string) {
       </div>
       <!-- PAGINATION -->
       <!-- <nav
-    v-if="a_r?.houses.count > 0"
-    class="d-print-none mt-3"
-  >
-    <ul class="pagination">
-      <li class="page-item">
-        <button
-          :disabled="a_l"
-          class="page-link active"
-        >
-          1
-        </button>
-      </li>
-      <li class="page-item">
-        <button
-          :disabled="a_l"
-          class="page-link"
-        >
-          2
-        </button>
-      </li>
-    </ul>
-  </nav> -->
+        v-if="a_r?.houses.count > 0"
+        class="d-print-none mt-3"
+      >
+        <ul class="pagination">
+          <li class="page-item">
+            <button
+              :disabled="a_l"
+              class="page-link active"
+            >
+              1
+            </button>
+          </li>
+          <li class="page-item">
+            <button
+              :disabled="a_l"
+              class="page-link"
+            >
+              2
+            </button>
+          </li>
+        </ul>
+      </nav> -->
 
       <!-- MODALS -->
       <!-- MODALS -->

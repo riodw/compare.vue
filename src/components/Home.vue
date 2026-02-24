@@ -12,6 +12,10 @@ const NON_MODEL_ARGS = [
   "after",
   "offset",
   "orderBy",
+  //
+  "and",
+  "or",
+  "not",
 ];
 
 const search = ref("");
@@ -24,6 +28,44 @@ const sorts = ref([]);
 
 const fields_query = {
   query: {
+    // __schema: {
+    //   types: {
+    //     kind: true,
+    //     name: true,
+    //     description: true,
+    //     fields: {
+    //       name: true,
+    //       description: true,
+    //       args: {
+    //         name: true,
+    //         description: true,
+    //         type: {
+    //           kind: true,
+    //           name: true,
+    //           description: true,
+    //           inputFields: {
+    //             name: true,
+    //             description: true,
+    //             type: {
+    //               kind: true,
+    //               name: true,
+    //               description: true,
+    //               inputFields: {
+    //                 name: true,
+    //                 description: true,
+    //                 type: {
+    //                   kind: true,
+    //                   name: true,
+    //                   description: true,
+    //                 },
+    //               },
+    //             },
+    //           },
+    //         },
+    //       },
+    //     },
+    //   },
+    // },
     __type: {
       __args: { name: "Query" },
       fields: {
@@ -37,28 +79,28 @@ const fields_query = {
             kind: true,
             name: true,
             description: true,
-            inputFields: {
-              name: true,
-              description: true,
-              defaultValue: true,
-              type: {
-                kind: true,
-                name: true,
-                description: true,
-                ofType: {
-                  kind: true,
-                  name: true,
-                  ofType: {
-                    kind: true,
-                    name: true,
-                    ofType: {
-                      kind: true,
-                      name: true,
-                    },
-                  },
-                },
-              },
-            },
+            // inputFields: {
+            //   name: true,
+            //   description: true,
+            //   defaultValue: true,
+            //   type: {
+            //     kind: true,
+            //     name: true,
+            //     description: true,
+            //     ofType: {
+            //       kind: true,
+            //       name: true,
+            //       ofType: {
+            //         kind: true,
+            //         name: true,
+            //         ofType: {
+            //           kind: true,
+            //           name: true,
+            //         },
+            //       },
+            //     },
+            //   },
+            // },
           },
         },
       },
@@ -86,12 +128,14 @@ watch(f_r, (value) => {
 
   f = stripTypename(f);
 
+  console.log("schema", f);
   // top level args
-  fields.value = f?.filter((arg: any) => !NON_MODEL_ARGS.includes(arg.name));
-  // console.log("topLevelArgs", topLevelArgs);
+  fields.value =
+    f
+      ?.filter((arg: any) => !NON_MODEL_ARGS.includes(arg.name))
+      .filter((arg: any) => arg.type.name !== "ID") || [];
 });
 
-//
 //
 //
 //
@@ -525,6 +569,9 @@ function camel(s: string) {
           </li>
         </ul>
       </div>
+      <h5 v-else-if="f_e" class="alert alert-danger text-center">
+        {{ f_e }}
+      </h5>
       <!-- DATA -->
       <pre>
         {{ groupedFilters() }}

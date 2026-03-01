@@ -6,6 +6,8 @@ import {
 } from "json-to-graphql-query";
 
 const NON_MODEL_ARGS = [
+  "filter",
+  //
   "first",
   "last",
   "before",
@@ -26,48 +28,36 @@ const search_fields = ref("");
 const filters = ref([]);
 const sorts = ref([]);
 
+const input_query = {
+  query: {
+    __type: {
+      __args: { name: "ToolNodeToolFilterNameFilterInputType" },
+      name: true,
+      kind: true,
+      inputFields: {
+        name: true,
+        description: true,
+        defaultValue: true,
+        type: {
+          kind: true,
+          name: true,
+          ofType: {
+            kind: true,
+            name: true,
+          },
+        },
+      },
+    },
+  },
+};
+
 const fields_query = {
   query: {
-    // __schema: {
-    //   types: {
-    //     kind: true,
-    //     name: true,
-    //     description: true,
-    //     fields: {
-    //       name: true,
-    //       description: true,
-    //       args: {
-    //         name: true,
-    //         description: true,
-    //         type: {
-    //           kind: true,
-    //           name: true,
-    //           description: true,
-    //           inputFields: {
-    //             name: true,
-    //             description: true,
-    //             type: {
-    //               kind: true,
-    //               name: true,
-    //               description: true,
-    //               inputFields: {
-    //                 name: true,
-    //                 description: true,
-    //                 type: {
-    //                   kind: true,
-    //                   name: true,
-    //                   description: true,
-    //                 },
-    //               },
-    //             },
-    //           },
-    //         },
-    //       },
-    //     },
-    //   },
-    // },
     __type: {
+      // __args: { name: "ToolNode" },
       __args: { name: "Query" },
+      name: true,
+      kind: true,
       fields: {
         name: true,
         description: true,

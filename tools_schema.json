@@ -6,8 +6,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Int",
-      "description": "The `Int` scalar type represents non-fractional signed whole numeric values. Int can represent values between -(2^31) and 2^31 - 1.",
-      "inputFields": null
+      "description": "The `Int` scalar type represents non-fractional signed whole numeric values. Int can represent values between -(2^31) and 2^31 - 1."
     }
   },
   {
@@ -17,8 +16,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -28,8 +26,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -39,8 +36,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Int",
-      "description": "The `Int` scalar type represents non-fractional signed whole numeric values. Int can represent values between -(2^31) and 2^31 - 1.",
-      "inputFields": null
+      "description": "The `Int` scalar type represents non-fractional signed whole numeric values. Int can represent values between -(2^31) and 2^31 - 1."
     }
   },
   {
@@ -50,8 +46,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Int",
-      "description": "The `Int` scalar type represents non-fractional signed whole numeric values. Int can represent values between -(2^31) and 2^31 - 1.",
-      "inputFields": null
+      "description": "The `Int` scalar type represents non-fractional signed whole numeric values. Int can represent values between -(2^31) and 2^31 - 1."
     }
   },
   {
@@ -61,8 +56,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -72,8 +66,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -83,8 +76,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -94,8 +86,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -105,8 +96,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -116,8 +106,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -127,8 +116,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -138,8 +126,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -149,8 +136,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -160,8 +146,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -171,8 +156,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -182,8 +166,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -193,8 +176,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -204,8 +186,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -215,8 +196,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Boolean",
-      "description": "The `Boolean` scalar type represents `true` or `false`.",
-      "inputFields": null
+      "description": "The `Boolean` scalar type represents `true` or `false`."
     }
   },
   {
@@ -226,8 +206,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -237,8 +216,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -248,8 +226,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -259,8 +236,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -270,8 +246,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -281,8 +256,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -292,8 +266,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -303,8 +276,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -314,8 +286,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -325,8 +296,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -336,8 +306,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -347,8 +316,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -358,8 +326,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -369,8 +336,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -380,8 +346,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -391,8 +356,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -402,8 +366,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Boolean",
-      "description": "The `Boolean` scalar type represents `true` or `false`.",
-      "inputFields": null
+      "description": "The `Boolean` scalar type represents `true` or `false`."
     }
   },
   {
@@ -413,8 +376,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -424,8 +386,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -435,8 +396,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -446,8 +406,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -457,8 +416,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -468,8 +426,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -479,8 +436,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -490,8 +446,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -501,8 +456,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -512,8 +466,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -523,8 +476,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -534,8 +486,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -545,8 +496,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -556,8 +506,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -567,8 +516,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -578,8 +526,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -589,8 +536,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Boolean",
-      "description": "The `Boolean` scalar type represents `true` or `false`.",
-      "inputFields": null
+      "description": "The `Boolean` scalar type represents `true` or `false`."
     }
   },
   {
@@ -600,8 +546,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -611,8 +556,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "String",
-      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.",
-      "inputFields": null
+      "description": "The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text."
     }
   },
   {
@@ -622,8 +566,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -633,8 +576,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -644,8 +586,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -655,8 +596,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -666,8 +606,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -677,8 +616,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -688,8 +626,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -699,8 +636,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -710,8 +646,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -721,8 +656,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -732,8 +666,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -743,8 +676,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -754,8 +686,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -765,8 +696,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -776,8 +706,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Boolean",
-      "description": "The `Boolean` scalar type represents `true` or `false`.",
-      "inputFields": null
+      "description": "The `Boolean` scalar type represents `true` or `false`."
     }
   },
   {
@@ -787,8 +716,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -798,8 +726,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -809,8 +736,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -820,8 +746,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -831,8 +756,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -842,8 +766,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -853,8 +776,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -864,8 +786,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -875,8 +796,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -886,8 +806,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -897,8 +816,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -908,8 +826,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -919,8 +836,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -930,8 +846,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -941,8 +856,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -952,8 +866,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -963,8 +876,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -974,8 +886,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Boolean",
-      "description": "The `Boolean` scalar type represents `true` or `false`.",
-      "inputFields": null
+      "description": "The `Boolean` scalar type represents `true` or `false`."
     }
   },
   {
@@ -985,8 +896,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -996,8 +906,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -1007,8 +916,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -1018,8 +926,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -1029,8 +936,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -1040,8 +946,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -1051,8 +956,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -1062,8 +966,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -1073,8 +976,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -1084,8 +986,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -1095,8 +996,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -1106,8 +1006,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -1117,8 +1016,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -1128,8 +1026,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -1139,8 +1036,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -1150,8 +1046,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -1161,8 +1056,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -1172,8 +1066,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Boolean",
-      "description": "The `Boolean` scalar type represents `true` or `false`.",
-      "inputFields": null
+      "description": "The `Boolean` scalar type represents `true` or `false`."
     }
   },
   {
@@ -1183,8 +1076,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -1194,8 +1086,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -1205,8 +1096,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "Decimal",
-      "description": "The `Decimal` scalar type represents a python Decimal.",
-      "inputFields": null
+      "description": "The `Decimal` scalar type represents a python Decimal."
     }
   },
   {
@@ -1216,8 +1106,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "ID",
-      "description": "The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `\"4\"`) or integer (such as `4`) input value will be accepted as an ID.",
-      "inputFields": null
+      "description": "The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `\"4\"`) or integer (such as `4`) input value will be accepted as an ID."
     }
   },
   {
@@ -1227,8 +1116,7 @@
     "type": {
       "kind": "SCALAR",
       "name": "ID",
-      "description": "The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `\"4\"`) or integer (such as `4`) input value will be accepted as an ID.",
-      "inputFields": null
+      "description": "The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `\"4\"`) or integer (such as `4`) input value will be accepted as an ID."
     }
   },
   {
@@ -1238,138 +1126,7 @@
     "type": {
       "kind": "INPUT_OBJECT",
       "name": "ToolNodeToolFilterFilterInputType",
-      "description": null,
-      "inputFields": [
-        {
-          "name": "brand",
-          "description": "`Brand` field",
-          "defaultValue": null,
-          "type": {
-            "kind": "INPUT_OBJECT",
-            "name": "ToolNodeToolFilterBrandFilterInputType",
-            "description": null,
-            "ofType": null
-          }
-        },
-        {
-          "name": "category",
-          "description": "`Category` field",
-          "defaultValue": null,
-          "type": {
-            "kind": "INPUT_OBJECT",
-            "name": "ToolNodeToolFilterCategoryFilterInputType",
-            "description": null,
-            "ofType": null
-          }
-        },
-        {
-          "name": "name",
-          "description": "`Name` field",
-          "defaultValue": null,
-          "type": {
-            "kind": "INPUT_OBJECT",
-            "name": "ToolNodeToolFilterNameFilterInputType",
-            "description": null,
-            "ofType": null
-          }
-        },
-        {
-          "name": "modelNumber",
-          "description": "`ModelNumber` field",
-          "defaultValue": null,
-          "type": {
-            "kind": "INPUT_OBJECT",
-            "name": "ToolNodeToolFilterModelNumberFilterInputType",
-            "description": null,
-            "ofType": null
-          }
-        },
-        {
-          "name": "description",
-          "description": "`Description` field",
-          "defaultValue": null,
-          "type": {
-            "kind": "INPUT_OBJECT",
-            "name": "ToolNodeToolFilterDescriptionFilterInputType",
-            "description": null,
-            "ofType": null
-          }
-        },
-        {
-          "name": "weight",
-          "description": "`Weight` field",
-          "defaultValue": null,
-          "type": {
-            "kind": "INPUT_OBJECT",
-            "name": "ToolNodeToolFilterWeightFilterInputType",
-            "description": null,
-            "ofType": null
-          }
-        },
-        {
-          "name": "price",
-          "description": "`Price` field",
-          "defaultValue": null,
-          "type": {
-            "kind": "INPUT_OBJECT",
-            "name": "ToolNodeToolFilterPriceFilterInputType",
-            "description": null,
-            "ofType": null
-          }
-        },
-        {
-          "name": "noiseLevel",
-          "description": "`NoiseLevel` field",
-          "defaultValue": null,
-          "type": {
-            "kind": "INPUT_OBJECT",
-            "name": "ToolNodeToolFilterNoiseLevelFilterInputType",
-            "description": null,
-            "ofType": null
-          }
-        },
-        {
-          "name": "and",
-          "description": "`And` field",
-          "defaultValue": null,
-          "type": {
-            "kind": "LIST",
-            "name": null,
-            "description": null,
-            "ofType": {
-              "kind": "INPUT_OBJECT",
-              "name": "ToolNodeToolFilterFilterInputType",
-              "ofType": null
-            }
-          }
-        },
-        {
-          "name": "or",
-          "description": "`Or` field",
-          "defaultValue": null,
-          "type": {
-            "kind": "LIST",
-            "name": null,
-            "description": null,
-            "ofType": {
-              "kind": "INPUT_OBJECT",
-              "name": "ToolNodeToolFilterFilterInputType",
-              "ofType": null
-            }
-          }
-        },
-        {
-          "name": "not",
-          "description": "`Not` field",
-          "defaultValue": null,
-          "type": {
-            "kind": "INPUT_OBJECT",
-            "name": "ToolNodeToolFilterFilterInputType",
-            "description": null,
-            "ofType": null
-          }
-        }
-      ]
+      "description": null
     }
   }
 ]

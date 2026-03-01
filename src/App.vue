@@ -7,7 +7,7 @@
       <!-- LEFT-NAV -->
       <NavLeft />
       <!-- CONTENT -->
-      <Home2 />
+      <Home3 />
     </div>
   </div>
 </template>

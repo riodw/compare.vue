@@ -227,11 +227,93 @@ function enableFilter(inputField: any) {
   }
 }
 
-function isChild(name: string) {
-  for (const f of filters.value.filter((o: any) => o.on)) {
-    if (f.inputFields.find((o: any) => o.type.name === name)) return true;
+// Compute an array of linear paths representing active filter sequences
+const activeFilterPaths = computed(() => {
+  const paths: any[][] = [];
+
+  const rootObj = filters.value.find((o: any) => o.name === tool_root.value);
+  if (!rootObj || !rootObj.inputFields) return paths;
+
+  function traverse(currentObj: any, currentPath: any[]) {
+    if (!currentObj.inputFields) {
+      if (currentPath.length > 0) paths.push(currentPath);
+      return;
+    }
+
+    const activeFields = currentObj.inputFields.filter((f: any) => f.on);
+
+    // End of active branch
+    if (activeFields.length === 0) {
+      if (currentPath.length > 0) paths.push(currentPath);
+      return;
+    }
+
+    // Branch out for each active field
+    for (const field of activeFields) {
+      // Determine if it is a Scalar/End-node leaf
+      const isLeaf =
+        field.type?.kind === "SCALAR" ||
+        ["String", "Boolean", "Int", "Float", "Decimal", "ID"].includes(
+          field.type?.name
+        );
+
+      const levelNode = {
+        selected: field,
+        options: currentObj.inputFields,
+        isLeaf: isLeaf,
+      };
+
+      const newPath = [...currentPath, levelNode];
+
+      if (isLeaf) {
+        paths.push(newPath); // Completed row ending in leaf
+      } else {
+        const nextObj = filters.value.find(
+          (f: any) => f.name === field.type?.name
+        );
+        if (nextObj) {
+          traverse(nextObj, newPath); // Continue recursion
+        } else {
+          paths.push(newPath); // Failsafe stop
+        }
+      }
+    }
   }
-  return false;
+
+  // Start from the active fields on the root filter
+  traverse(rootObj, []);
+  return paths;
+});
+
+// Used when a path's specific dropdown option is changed to another
+function changeNode(level: any, event: Event) {
+  const target = event.target as HTMLSelectElement;
+  if (!target) return;
+
+  const newOptionName = target.value;
+  if (level.selected.name === newOptionName) return;
+
+  // Turn off old option
+  level.selected.on = false;
+
+  // Turn on new option and cascade it open
+  const newOption = level.options.find((o: any) => o.name === newOptionName);
+  if (newOption) {
+    enableFilter(newOption);
+  }
+}
+
+// Rolls up the path turning off the nested components recursively backwards
+function deletePath(path: any[]) {
+  for (let i = path.length - 1; i >= 0; i--) {
+    const level = path[i];
+    level.selected.on = false;
+
+    // Check if there are siblings acting on the same level still
+    // If yes, we must stop deletion cascade to preserve the siblings
+    const siblingsActive = level.options.some((opt: any) => opt.on);
+    if (siblingsActive) break;
+  }
 }
 </script>
 
@@ -250,25 +332,46 @@ function isChild(name: string) {
       </select>
       <button @click="enableFilter(f_selected)">Add</button>
       <hr />
+      <!-- Render dynamic linear paths as dropdown sequences -->
       <div
-        v-for="f in filters.filter((o) => o.on && !isChild(o.name))"
-        :key="f.name"
+        v-for="(path, pIdx) in activeFilterPaths"
+        :key="'path-' + pIdx"
+        style="
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          margin-bottom: 8px;
+        "
       >
-        <div>
-          {{ f.name }}
-        </div>
-        <button>
-          {{ getFilterMatch(f.name).name }}
-        </button>
-        <span v-for="inf in f.inputFields.filter((o) => o.on)">
-          <select>
-            <option v-for="opt in f.inputFields" :key="opt.name" :value="opt">
+        <span
+          v-for="(level, lIdx) in path"
+          :key="'level-' + lIdx"
+          style="display: flex; gap: 8px; align-items: center"
+        >
+          <!-- Show options available at this depth level  -->
+          <select
+            :value="level.selected.name"
+            @change="changeNode(level, $event)"
+          >
+            <option
+              v-for="opt in level.options"
+              :key="opt.name"
+              :value="opt.name"
+            >
               {{ opt.name }}
             </option>
           </select>
-          <input type="text" v-model="inf.value" />
-          <button @click="inf.on = false">Del</button>
+
+          <!-- Conditionally drop the input box if we hit the data-type end -->
+          <input
+            v-if="level.isLeaf"
+            type="text"
+            v-model="level.selected.value"
+            placeholder="Type value..."
+          />
         </span>
+
+        <button @click="deletePath(path)">Del</button>
       </div>
       <hr />
       <pre>

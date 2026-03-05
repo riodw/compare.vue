@@ -1,12 +1,16 @@
 services:
   - type: web
-    name: compare-vue
+    name: compare.vue
+    plan: free
+    branch: main
+    region: ohio
+    repo: https://github.com/riodw/compare.vue
     env: static
     buildCommand: pnpm install && pnpm run build
     staticPublishPath: ./dist
     envVars:
       - key: NODE_VERSION
-        value: 20.19.0
+        value: 24.13.1
     routes:
       - type: rewrite
         source: /*

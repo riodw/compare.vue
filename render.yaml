@@ -6,7 +6,7 @@ services:
     region: ohio
     repo: https://github.com/riodw/compare.vue
     env: static
-    buildCommand: pnpm install && pnpm run build
+    buildCommand: pnpm install && pnpm run build-only
     staticPublishPath: ./dist
     envVars:
       - key: NODE_VERSION

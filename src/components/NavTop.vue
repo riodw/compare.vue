@@ -1,10 +1,4 @@
-<script setup lang="ts">
-function changeTheme() {
-  if (document.documentElement.getAttribute("data-bs-theme") === "dark")
-    document.documentElement.setAttribute("data-bs-theme", "light");
-  else document.documentElement.setAttribute("data-bs-theme", "dark");
-}
-</script>
+<script setup lang="ts"></script>
 
 <template>
   <nav
@@ -15,9 +9,7 @@ function changeTheme() {
       <Logo />
       <!-- <div class="container d-none d-md-flex flex-fill"></div> -->
       <div class="d-flex flex-shrink-0">
-        <button class="btn btn-link text-body" @click="changeTheme()">
-          <i class="bi bi-brightness-high-fill"></i>
-        </button>
+        <ThemeToggle />
         <div class="dropdown">
           <button
             class="btn btn-link text-body"

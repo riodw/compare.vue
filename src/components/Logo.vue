@@ -6,6 +6,6 @@
     class="navbar-brand"
   >
     <i class="bi bi-list"></i>
-    <strong class="ps-2">DoormatKey🔑</strong>
+    <strong class="ps-2">🧰Compare</strong>
   </a>
 </template>

@@ -26,7 +26,7 @@
               <div class="dropdown-item disabled">APPS</div>
             </li>
             <li>
-              <a class="dropdown-item fw-bold" href="#">DoormatKey🔑</a>
+              <a class="dropdown-item fw-bold" href="#">🧰Compare</a>
             </li>
           </ul>
         </div>

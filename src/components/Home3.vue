@@ -7,7 +7,7 @@ import {
 import { ref, watch, computed, nextTick } from "vue";
 
 // root object config
-const ROOT = "tools";
+const ROOT = "toolMetrics";
 const NON_MODEL_ARGS = [
   "filter",
   "first",
@@ -373,13 +373,14 @@ const q = {
   query: {
     __name: "MyQuery",
     __variables: {} as any,
-    tools: {
+    [ROOT]: {
       __args: {} as any,
       edges: {
         node: {
           id: true,
-          name: true,
-          brand: { name: true },
+          value: true,
+          // name: true,
+          // brand: { name: true },
         },
       },
       count: true,
@@ -401,7 +402,7 @@ const {
 // Execute search using populated filter parameters
 function get() {
   q.query.__variables = {};
-  q.query.tools.__args = {};
+  q.query[ROOT].__args = {};
   const newVariables: any = {};
 
   let filterPayload: any = {};
@@ -430,7 +431,7 @@ function get() {
   // Attach recursive nested JSON schema to standard variable wrapper
   if (Object.keys(filterPayload).length > 0 && tool_root.value !== "") {
     q.query.__variables["filter"] = tool_root.value;
-    q.query.tools.__args["filter"] = new VariableType("filter");
+    q.query[ROOT].__args["filter"] = new VariableType("filter");
     newVariables["filter"] = filterPayload;
   }
 
@@ -444,7 +445,7 @@ function commitFilterValue() {
 }
 
 function getEdges() {
-  return a_r.value?.tools;
+  return a_r.value?.[ROOT];
 }
 </script>
 
@@ -463,7 +464,9 @@ function getEdges() {
 
       <!-- TITLE -->
       <div class="d-flex align-items-end justify-content-between mb-3">
-        <h1 class="m-0">{{ a_r?.tools.count || "--" }} Tools</h1>
+        <h1 class="text-capitalize m-0">
+          {{ a_r?.[ROOT]?.count || "--" }} {{ camel(ROOT) }}
+        </h1>
       </div>
 
       <!-- SEARCH BOX -->
@@ -491,7 +494,7 @@ function getEdges() {
       </div>
 
       <!-- FILTERS PANEL -->
-      <div v-if="!q_e" class="card mb-3">
+      <div v-if="!q_e" class="card mb-4">
         <ul v-if="show_filters" class="list-group list-group-flush">
           <li class="list-group-item">
             <!-- Add new filter topbar -->
@@ -555,37 +558,28 @@ function getEdges() {
                       v-for="(cell, cIdx) in rowCells"
                       :key="'cell-' + cIdx"
                     >
-                      <td
-                        v-if="!cell.isSpanned"
-                        :rowspan="cell.rowSpan"
-                        style="height: 1px"
-                      >
-                        <div
-                          class="d-flex flex-nowrap align-items-stretch"
-                          style="height: 100%; min-height: 31px"
-                          :class="{ 'input-group': cell.level.isLeaf }"
+                      <template v-if="!cell.isSpanned">
+                        <td
+                          v-if="cIdx === 0"
+                          :rowspan="cell.rowSpan"
+                          style="height: 1px"
                         >
                           <!-- Level 0: Add new filter branch button -->
                           <button
-                            v-if="cIdx === 0"
-                            class="btn btn-outline-primary btn-sm text-capitalize w-100 rounded-start-pill px-3"
-                            style="white-space: nowrap"
+                            class="btn btn-outline-primary btn-sm text-capitalize w-100 rounded-start-pill px-3 h-100 w-100"
+                            style="min-height: 31px"
                             @click="addNextFilter(cell.level)"
                           >
                             {{ camel(cell.level.selected.name) }}
                           </button>
-
-                          <!-- Level > 0: Show options available at this depth level  -->
+                        </td>
+                        <!-- Level > 0: Show options available at this depth level  -->
+                        <td v-else :rowspan="cell.rowSpan" style="height: 1px">
                           <select
-                            v-else
                             :value="cell.level.selected.name"
                             @change="changeNode(cell.level, $event)"
-                            class="btn btn-outline-secondary btn-sm text-capitalize border-secondary text-center rounded-0"
-                            :class="
-                              cell.level.isLeaf
-                                ? 'border-end-0 w-auto ps-3'
-                                : 'w-100 px-3'
-                            "
+                            class="btn btn-outline-secondary btn-sm text-capitalize border-secondary text-center rounded-0 h-100 w-100"
+                            style="min-height: 31px"
                           >
                             <option
                               v-for="opt in cell.level.options"
@@ -595,45 +589,51 @@ function getEdges() {
                               {{ camel(opt.name) }}
                             </option>
                           </select>
+                        </td>
 
-                          <!-- Conditionally drop the input box based on types  -->
-                          <template v-if="cell.level.isLeaf">
-                            <!-- Boolean Type: Show Dropdown -->
-                            <select
-                              v-if="cell.level.fieldType === 'Boolean'"
-                              v-model="cell.level.selected.value"
-                              class="btn btn-outline-secondary btn-sm border-secondary rounded-0 pe-3"
-                              @change="commitFilterValue"
-                            >
-                              <option value="">Select...</option>
-                              <option :value="true">True</option>
-                              <option :value="false">False</option>
-                            </select>
+                        <!-- Conditionally drop the input box based on types  -->
+                        <td
+                          v-if="cell.level.isLeaf"
+                          :rowspan="cell.rowSpan"
+                          style="height: 1px"
+                        >
+                          <!-- Boolean Type: Show Dropdown -->
+                          <select
+                            v-if="cell.level.fieldType === 'Boolean'"
+                            v-model="cell.level.selected.value"
+                            class="btn btn-outline-secondary btn-sm border-secondary rounded-0 h-100 pe-3 w-100"
+                            @change="commitFilterValue"
+                            style="min-height: 31px"
+                          >
+                            <option value="">Select...</option>
+                            <option :value="true">True</option>
+                            <option :value="false">False</option>
+                          </select>
 
-                            <!-- Standard Datatypes: Show Text Box -->
-                            <input
-                              v-else
-                              :type="
-                                ['Int', 'Decimal', 'Float'].includes(
-                                  cell.level.fieldType
-                                )
-                                  ? 'number'
-                                  : 'text'
-                              "
-                              v-model="cell.level.selected.value"
-                              @keyup.enter="commitFilterValue"
-                              :placeholder="cell.level.fieldType + '...'"
-                              class="form-control form-control-sm border-secondary rounded-0 px-3"
-                              style="min-width: 140px"
-                            />
-                          </template>
-                        </div>
-                      </td>
+                          <!-- Standard Datatypes: Show Text Box -->
+                          <input
+                            v-else
+                            :type="
+                              ['Int', 'Decimal', 'Float'].includes(
+                                cell.level.fieldType
+                              )
+                                ? 'number'
+                                : 'text'
+                            "
+                            v-model="cell.level.selected.value"
+                            @keyup.enter="commitFilterValue"
+                            :placeholder="cell.level.fieldType + '...'"
+                            class="form-control form-control-sm border-secondary rounded-0 h-100 px-3 w-100"
+                            style="min-width: 140px; min-height: 31px"
+                          />
+                        </td>
+                      </template>
                     </template>
                     <!-- Delete Button for the path -->
                     <td>
                       <button
                         class="btn btn-outline-danger btn-sm rounded-end-pill"
+                        style="height: 100%; min-height: 31px"
                         @click="deletePath(activeFilterPaths[rIdx] || [])"
                       >
                         <i class="bi bi-trash3"></i>
@@ -666,7 +666,7 @@ function getEdges() {
           <li
             class="list-group-item d-flex align-items-center justify-content-between"
           >
-            <b>Filters</b>
+            <b>{{ activeFilterPaths.length }} Filters</b>
             <button class="btn btn-link btn-sm" @click="show_filters = true">
               <i class="bi bi-chevron-down"></i>
               expand
@@ -730,4 +730,3 @@ function getEdges() {
     </div>
   </div>
 </template>
-j

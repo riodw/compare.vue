@@ -6,8 +6,11 @@ import {
 } from "json-to-graphql-query";
 import { ref, watch, computed, nextTick } from "vue";
 
-// root object config
+// The GraphQL root query field name — change this to point at a different model
 const ROOT = "tools";
+
+// Args that belong to the query envelope (pagination, filtering, sorting, logical operators)
+// rather than the model's own scalar fields. Used to separate model fields from control args.
 const NON_MODEL_ARGS = [
   "filter",
   "first",
@@ -21,39 +24,42 @@ const NON_MODEL_ARGS = [
   "not",
 ];
 
-// State
+// ---- State ----
 const search = ref("");
 const show_filters = ref(true);
-const search_fields = ref("");
-const fields = ref<any[]>([]); // root level generic graphql args
-const tool_root = ref("");
-const filters = ref<any[]>([]); // dynamically nested schema filter options
-const sort_root = ref("");
-const sort_var_type = ref("");
-const sort_types = ref<any[]>([]);
-const search_sort_fields = ref("");
+const search_fields = ref(""); // search text inside the "Add Filter" dropdown
+const fields = ref<any[]>([]); // root-level model args (non-envelope)
+const tool_root = ref(""); // introspected INPUT_OBJECT name for the filter type
+const filters = ref<any[]>([]); // flat list of all introspected filter INPUT_OBJECT types
+const sort_root = ref(""); // introspected INPUT_OBJECT name for the sort type
+const sort_var_type = ref(""); // full GraphQL variable type string e.g. "[ToolOrder!]"
+const sort_types = ref<any[]>([]); // flat list of all introspected sort INPUT_OBJECT types
+const search_sort_fields = ref(""); // search text inside the "Add Sort" dropdown
 
-// Modals / Refs
+// ---- Template Refs ----
 const searchFilters = ref<any>(null);
 const searchSortFilters = ref<any>(null);
 
-// Strip __typename recursively
+/** Recursively strip __typename fields injected by Apollo cache */
 const stripTypename = (obj: any): any => {
   if (Array.isArray(obj)) return obj.map(stripTypename);
   if (obj && typeof obj === "object") {
     const { __typename, ...rest } = obj;
-    for (const key in rest) {
-      rest[key] = stripTypename(rest[key]);
-    }
+    for (const key in rest) rest[key] = stripTypename(rest[key]);
     return rest;
   }
   return obj;
 };
 
-// ----------------------------------------------------
+// ================================================================
 // 1. DYNAMIC GRAPHQL SCHEMA INTROSPECTION
-// ----------------------------------------------------
+//    Uses __type introspection to discover the ROOT query's args,
+//    then recursively walks INPUT_OBJECT types to build up the
+//    filter and sort type trees used by the UI.
+// ================================================================
 
+// Introspect the top-level Query type to find all args for ROOT.
+// ofType is nested 2 deep to handle LIST(NON_NULL(Type)) wrappers.
 const fields_query = {
   query: {
     __type: {
@@ -92,7 +98,7 @@ const {
   error: q_e,
 } = useQuery(gql(jtg(fields_query)));
 
-// WATCH - SCHEMA LOAD (Top level query args)
+// When the schema introspection returns, extract model fields, filter type, and sort type
 watch(q_r, (value) => {
   let f;
   try {
@@ -104,22 +110,23 @@ watch(q_r, (value) => {
 
   f = stripTypename(f) || [];
 
-  // Separate non-relational root model queries
+  // Keep only actual model fields (exclude envelope args like filter, orderBy, pagination)
   fields.value = f
     .filter((arg: any) => !NON_MODEL_ARGS.includes(arg.name))
     .filter((arg: any) => arg.type?.name !== "ID");
 
-  // Locate the nested 'filter' argument graph object
+  // Kick off recursive introspection of the filter INPUT_OBJECT tree
   const filterArg = f.find((o: any) => o.name === "filter");
   if (filterArg?.type?.name) {
     tool_root.value = filterArg.type.name;
     getFilters(filterArg.type.name);
   }
 
-  // Locate the 'orderBy' argument for sort introspection
+  // Kick off recursive introspection of the orderBy INPUT_OBJECT tree.
+  // The orderBy arg is often wrapped in LIST/NON_NULL, so we recursively
+  // unwrap to recover both the full variable type string and the inner type name.
   const orderByArg = f.find((o: any) => o.name === "orderBy");
   if (orderByArg) {
-    // Rebuild the full GraphQL type string (e.g. "[TypeName!]") and extract the inner INPUT_OBJECT name
     function unwrapType(t: any): { varType: string; innerName: string } {
       if (!t) return { varType: "", innerName: "" };
       if (t.kind === "NON_NULL") {
@@ -141,6 +148,8 @@ watch(q_r, (value) => {
   }
 });
 
+// Reusable introspection query — fetches inputFields for any named INPUT_OBJECT type.
+// Used by both getFilters() and getSortTypes() via separate lazy query instances.
 const input_query = {
   query: {
     __variables: { name: "String!" },
@@ -163,6 +172,7 @@ const input_query = {
   },
 };
 
+// Separate lazy query instances so filter and sort introspection don't interfere
 const {
   result: f_r,
   load: f_l,
@@ -177,23 +187,24 @@ const {
   refetch: s_get,
 } = useLazyQuery(gql(jtg(input_query)));
 
-// Recursively build up memory list of all nested filter object types
+/**
+ * Walk the filter type graph depth-first, storing each INPUT_OBJECT in `filters`.
+ * Each type gets `on`/`value` UI state. Recurses into nested INPUT_OBJECT children.
+ */
 async function getFilters(typeName: string) {
   let data;
-  if (f_r.value === undefined) {
-    data = await f_l(null, { name: typeName });
-  } else {
-    const response = await f_get({ name: typeName });
-    data = response?.data;
-  }
+  if (f_r.value === undefined) data = await f_l(null, { name: typeName });
+  else data = (await f_get({ name: typeName }))?.data;
 
   if (!data?.__type?.inputFields) return;
 
   let inf = stripTypename(data.__type);
+  // Strip envelope args from the inputFields list
   inf.inputFields = inf.inputFields.filter(
     (o: any) => !NON_MODEL_ARGS.includes(o.name)
   );
 
+  // Initialize UI toggle state on the type and each field
   inf.on = false;
   inf.value = "";
   inf.inputFields.map((o: any) => {
@@ -201,31 +212,26 @@ async function getFilters(typeName: string) {
     o.value = "";
   });
 
+  // Upsert into the flat filters list (avoid duplicates on re-fetch)
   const existingIndex = filters.value.findIndex(
     (f: any) => f.name === inf.name
   );
-  if (existingIndex !== -1) {
-    Object.assign(filters.value[existingIndex], inf);
-  } else {
-    filters.value.push(inf);
-  }
+  if (existingIndex !== -1) Object.assign(filters.value[existingIndex], inf);
+  else filters.value.push(inf);
 
-  for (const o of inf.inputFields) {
-    if (o.type.kind === "INPUT_OBJECT") {
-      await getFilters(o.type.name);
-    }
-  }
+  // Recurse into any nested INPUT_OBJECT children
+  for (const o of inf.inputFields)
+    if (o.type.kind === "INPUT_OBJECT") await getFilters(o.type.name);
 }
 
-// Recursively build up memory list of all nested sort object types
+/**
+ * Same as getFilters but for sort types — walks the orderBy INPUT_OBJECT tree.
+ * Stores each discovered type in `sort_types` with `on`/`value` UI state.
+ */
 async function getSortTypes(typeName: string) {
   let data;
-  if (s_r.value === undefined) {
-    data = await s_l(null, { name: typeName });
-  } else {
-    const response = await s_get({ name: typeName });
-    data = response?.data;
-  }
+  if (s_r.value === undefined) data = await s_l(null, { name: typeName });
+  else data = (await s_get({ name: typeName }))?.data;
 
   if (!data?.__type?.inputFields) return;
 
@@ -244,24 +250,25 @@ async function getSortTypes(typeName: string) {
   const existingIndex = sort_types.value.findIndex(
     (f: any) => f.name === inf.name
   );
-  if (existingIndex !== -1) {
+  if (existingIndex !== -1)
     Object.assign(sort_types.value[existingIndex], inf);
-  } else {
-    sort_types.value.push(inf);
-  }
+  else sort_types.value.push(inf);
 
-  for (const o of inf.inputFields) {
-    if (o.type.kind === "INPUT_OBJECT") {
-      await getSortTypes(o.type.name);
-    }
-  }
+  for (const o of inf.inputFields)
+    if (o.type.kind === "INPUT_OBJECT") await getSortTypes(o.type.name);
 }
 
-// ----------------------------------------------------
+// ================================================================
 // 2. FILTER UI LOGIC
-// ----------------------------------------------------
+//    Manages the interactive filter builder: enabling/disabling
+//    filter branches, computing active paths through the type tree,
+//    and laying them out as a grid with merged rowspans.
+// ================================================================
 
-// Enable a top level filter and cascade open its children
+/**
+ * Toggle a filter field on and cascade-open the first child at each level.
+ * Triggers a query rebuild after activation.
+ */
 function enableFilter(inputField: any) {
   inputField.on = true;
 
@@ -269,36 +276,32 @@ function enableFilter(inputField: any) {
     const filterObj = filters.value.find(
       (f: any) => f.name === inputField.type.name
     );
-
     if (filterObj) {
       filterObj.on = true;
-
-      // Unroll first child layer if nothing is currently selected
-      if (
-        filterObj.inputFields &&
-        filterObj.inputFields.length > 0 &&
-        !filterObj.inputFields[0].on
-      ) {
+      // Auto-expand the first child if nothing is selected yet
+      if (filterObj.inputFields?.length > 0 && !filterObj.inputFields[0].on)
         enableFilter(filterObj.inputFields[0]);
-      }
     }
   }
 
-  // Re-fetch grapqhl payload reactively
+  // Rebuild the GraphQL query with the new filter state
   get();
 }
 
+/** Convert camelCase to spaced words for display: "brandName" → "brand Name" */
 function camel(s: string) {
   return s.replace(/([A-Z])/g, " $1").trim();
 }
 
-// Helper to grab options available for "Add Filter" dropdown menu
+/** Get the root-level filter inputFields (the top-level options in the "Add Filter" dropdown) */
 function topLevelFilters() {
-  const rootObj = filters.value.find((o: any) => o.name === tool_root.value);
-  return rootObj?.inputFields || [];
+  return (
+    filters.value.find((o: any) => o.name === tool_root.value)?.inputFields ||
+    []
+  );
 }
 
-// Filter dropdown box items array
+/** Filter the dropdown items by the search text, excluding already-active fields */
 function searchFields() {
   const searchStr = search_fields.value.toLowerCase();
   return topLevelFilters().filter(
@@ -306,13 +309,18 @@ function searchFields() {
   );
 }
 
-// Compute an array of linear paths representing active filter sequences
+/**
+ * Walk the filter type tree and collect every active branch as a linear path.
+ * Each path is an array of { selected, options, isLeaf, fieldType } nodes
+ * representing one row in the filter grid UI.
+ */
 const activeFilterPaths = computed(() => {
   const paths: any[][] = [];
   const rootObj = filters.value.find((o: any) => o.name === tool_root.value);
-  if (!rootObj || !rootObj.inputFields) return paths;
+  if (!rootObj?.inputFields) return paths;
 
   function traverse(currentObj: any, currentPath: any[]) {
+    // Terminal: no further fields to recurse into
     if (!currentObj.inputFields) {
       if (currentPath.length > 0) paths.push(currentPath);
       return;
@@ -320,12 +328,14 @@ const activeFilterPaths = computed(() => {
 
     const activeFields = currentObj.inputFields.filter((f: any) => f.on);
 
-    if (activeFields.length === 0) {
+    // No active children — emit the path so far (if non-empty)
+    if (!activeFields.length) {
       if (currentPath.length > 0) paths.push(currentPath);
       return;
     }
 
     for (const field of activeFields) {
+      // Leaf = scalar type or known primitive — these get an input/select in the UI
       const isLeaf =
         field.type?.kind === "SCALAR" ||
         ["String", "Boolean", "Int", "Float", "Decimal", "ID"].includes(
@@ -335,23 +345,20 @@ const activeFilterPaths = computed(() => {
       const levelNode = {
         selected: field,
         options: currentObj.inputFields,
-        isLeaf: isLeaf,
+        isLeaf,
         fieldType: field.type?.name || "String",
       };
 
       const newPath = [...currentPath, levelNode];
 
-      if (isLeaf) {
-        paths.push(newPath);
-      } else {
+      if (isLeaf) paths.push(newPath);
+      else {
+        // Recurse deeper into the nested INPUT_OBJECT
         const nextObj = filters.value.find(
           (f: any) => f.name === field.type?.name
         );
-        if (nextObj) {
-          traverse(nextObj, newPath);
-        } else {
-          paths.push(newPath);
-        }
+        if (nextObj) traverse(nextObj, newPath);
+        else paths.push(newPath);
       }
     }
   }
@@ -360,7 +367,10 @@ const activeFilterPaths = computed(() => {
   return paths;
 });
 
-// Calculate spans and duplicates mapping flat paths into a smart 2D array representation
+/**
+ * Transform flat paths into a 2D grid with merged cells (rowspans).
+ * Shared ancestor nodes across adjacent rows get a single cell spanning multiple rows.
+ */
 const filterGrid = computed(() => {
   const paths = activeFilterPaths.value;
   const grid: any[][] = paths.map(() => []);
@@ -372,11 +382,11 @@ const filterGrid = computed(() => {
       const level = paths[row][col];
       if (!level) continue;
 
+      // Count how many consecutive rows below share the same ancestor chain up to this column
       let span = 1;
-
       for (let r = row + 1; r < paths.length; r++) {
         let isMatch = true;
-        for (let c = 0; c <= col; c++) {
+        for (let c = 0; c <= col; c++)
           if (
             !paths[r]?.[c] ||
             paths[r][c]?.selected?.name !== paths[row][c]?.selected?.name
@@ -384,21 +394,18 @@ const filterGrid = computed(() => {
             isMatch = false;
             break;
           }
-        }
-        if (isMatch) {
-          span++;
-        } else {
-          break;
-        }
+        if (isMatch) span++;
+        else break;
       }
 
       grid[row][col] = {
-        level: level,
+        level,
         rowSpan: span,
         colIdx: col,
         rowIdx: row,
       };
 
+      // Mark spanned cells so they're skipped during rendering
       for (let r = row + 1; r < row + span; r++) {
         if (!grid[r]) grid[r] = [];
         grid[r][col] = { isSpanned: true };
@@ -409,56 +416,54 @@ const filterGrid = computed(() => {
   return grid;
 });
 
-// Update the current node target, hide the old branch, expand the newly targeted nested branch
+/** Swap the selected node at a given level to a different option (via select change) */
 function changeNode(level: any, event: Event) {
   const target = event.target as HTMLSelectElement;
   if (!target) return;
   const newOptionName = target.value;
   if (level.selected.name === newOptionName) return;
 
+  // Deactivate old branch, activate new one
   level.selected.on = false;
   const newOption = level.options.find((o: any) => o.name === newOptionName);
-  if (newOption) {
-    enableFilter(newOption);
-  }
+  if (newOption) enableFilter(newOption);
 }
 
+/** Expand the next unused sibling field within a filter branch */
 function addNextFilter(level: any) {
-  if (level.selected.type?.name) {
-    const filterObj = filters.value.find(
-      (f: any) => f.name === level.selected.type.name
-    );
-    if (filterObj && filterObj.inputFields) {
-      const nextField = filterObj.inputFields.find((f: any) => !f.on);
-      if (nextField) {
-        enableFilter(nextField);
-      }
-    }
-  }
+  if (!level.selected.type?.name) return;
+  const filterObj = filters.value.find(
+    (f: any) => f.name === level.selected.type.name
+  );
+  const nextField = filterObj?.inputFields?.find((f: any) => !f.on);
+  if (nextField) enableFilter(nextField);
 }
 
-// Un-check the tree backwards to delete a row dynamically
+/** Walk backwards along a path turning off nodes; stop when a sibling is still active */
 function deletePath(path: any[]) {
   for (let i = path.length - 1; i >= 0; i--) {
     const level = path[i];
     level.selected.on = false;
-    const siblingsActive = level.options.some((opt: any) => opt.on);
-    if (siblingsActive) break;
+    if (level.options.some((opt: any) => opt.on)) break;
   }
   get();
 }
 
-// ----------------------------------------------------
+// ================================================================
 // 2b. SORT UI LOGIC
-// ----------------------------------------------------
+//     Mirrors the filter UI but for orderBy. Leaf nodes are
+//     ENUM (ASC/DESC) instead of scalar input values.
+// ================================================================
 
+/** Get the root-level sort inputFields for the "Add Sort" dropdown */
 function topLevelSorts() {
-  const rootObj = sort_types.value.find(
-    (o: any) => o.name === sort_root.value
+  return (
+    sort_types.value.find((o: any) => o.name === sort_root.value)
+      ?.inputFields || []
   );
-  return rootObj?.inputFields || [];
 }
 
+/** Filter sort dropdown items by search text, excluding already-active fields */
 function searchSortFieldsFn() {
   const searchStr = search_sort_fields.value.toLowerCase();
   return topLevelSorts().filter(
@@ -466,6 +471,10 @@ function searchSortFieldsFn() {
   );
 }
 
+/**
+ * Toggle a sort field on and cascade-open children.
+ * Leaf nodes (ENUM direction) default to "ASC". Triggers a query rebuild.
+ */
 function enableSort(inputField: any) {
   inputField.on = true;
 
@@ -475,28 +484,26 @@ function enableSort(inputField: any) {
     );
     if (sortObj) {
       sortObj.on = true;
-      if (
-        sortObj.inputFields &&
-        sortObj.inputFields.length > 0 &&
-        !sortObj.inputFields[0].on
-      ) {
+      if (sortObj.inputFields?.length > 0 && !sortObj.inputFields[0].on)
         enableSort(sortObj.inputFields[0]);
-      }
     }
-  } else {
-    // Leaf node (ENUM direction) - default to ASC
-    if (!inputField.value) inputField.value = "ASC";
-  }
+  } else if (!inputField.value)
+    // Leaf node (ENUM direction) — default to ascending
+    inputField.value = "ASC";
 
   get();
 }
 
+/**
+ * Collect active sort branches as linear paths (same traversal pattern as filters).
+ * Leaf detection uses kind !== INPUT_OBJECT to catch ENUM sort directions.
+ */
 const activeSortPaths = computed(() => {
   const paths: any[][] = [];
   const rootObj = sort_types.value.find(
     (o: any) => o.name === sort_root.value
   );
-  if (!rootObj || !rootObj.inputFields) return paths;
+  if (!rootObj?.inputFields) return paths;
 
   function traverse(currentObj: any, currentPath: any[]) {
     if (!currentObj.inputFields) {
@@ -506,34 +513,29 @@ const activeSortPaths = computed(() => {
 
     const activeFields = currentObj.inputFields.filter((f: any) => f.on);
 
-    if (activeFields.length === 0) {
-      if (currentPath.length > 0) paths.push(currentPath);
-      return;
-    }
+    if (!activeFields.length)
+      if (currentPath.length > 0) return paths.push(currentPath);
 
     for (const field of activeFields) {
+      // For sorts, anything that isn't INPUT_OBJECT is a leaf (typically ENUM: ASC/DESC)
       const isLeaf = field.type?.kind !== "INPUT_OBJECT";
 
       const levelNode = {
         selected: field,
         options: currentObj.inputFields,
-        isLeaf: isLeaf,
+        isLeaf,
         fieldType: field.type?.name || "String",
       };
 
       const newPath = [...currentPath, levelNode];
 
-      if (isLeaf) {
-        paths.push(newPath);
-      } else {
+      if (isLeaf) paths.push(newPath);
+      else {
         const nextObj = sort_types.value.find(
           (f: any) => f.name === field.type?.name
         );
-        if (nextObj) {
-          traverse(nextObj, newPath);
-        } else {
-          paths.push(newPath);
-        }
+        if (nextObj) traverse(nextObj, newPath);
+        else paths.push(newPath);
       }
     }
   }
@@ -542,6 +544,7 @@ const activeSortPaths = computed(() => {
   return paths;
 });
 
+/** Build the sort grid with merged rowspans (same algorithm as filterGrid) */
 const sortGrid = computed(() => {
   const paths = activeSortPaths.value;
   const grid: any[][] = paths.map(() => []);
@@ -557,7 +560,7 @@ const sortGrid = computed(() => {
 
       for (let r = row + 1; r < paths.length; r++) {
         let isMatch = true;
-        for (let c = 0; c <= col; c++) {
+        for (let c = 0; c <= col; c++)
           if (
             !paths[r]?.[c] ||
             paths[r][c]?.selected?.name !== paths[row][c]?.selected?.name
@@ -565,16 +568,12 @@ const sortGrid = computed(() => {
             isMatch = false;
             break;
           }
-        }
-        if (isMatch) {
-          span++;
-        } else {
-          break;
-        }
+        if (isMatch) span++;
+        else break;
       }
 
       grid[row][col] = {
-        level: level,
+        level,
         rowSpan: span,
         colIdx: col,
         rowIdx: row,
@@ -590,6 +589,7 @@ const sortGrid = computed(() => {
   return grid;
 });
 
+/** Swap a sort node to a different option (same pattern as changeNode for filters) */
 function changeSortNode(level: any, event: Event) {
   const target = event.target as HTMLSelectElement;
   if (!target) return;
@@ -598,29 +598,26 @@ function changeSortNode(level: any, event: Event) {
 
   level.selected.on = false;
   const newOption = level.options.find((o: any) => o.name === newOptionName);
-  if (newOption) {
-    enableSort(newOption);
-  }
+  if (newOption) enableSort(newOption);
 }
 
+/** Expand the next unused sibling field within a sort branch */
 function addNextSort(level: any) {
-  if (level.selected.type?.name) {
-    const sortObj = sort_types.value.find(
-      (f: any) => f.name === level.selected.type.name
-    );
-    if (sortObj && sortObj.inputFields) {
-      const nextField = sortObj.inputFields.find((f: any) => !f.on);
-      if (nextField) {
-        enableSort(nextField);
-      }
-    }
-  }
+  if (!level.selected.type?.name) return;
+  const sortObj = sort_types.value.find(
+    (f: any) => f.name === level.selected.type.name
+  );
+  const nextField = sortObj?.inputFields?.find((f: any) => !f.on);
+  if (nextField) enableSort(nextField);
 }
 
-// ----------------------------------------------------
+// ================================================================
 // 3. MAIN LIVE DATA QUERY
-// ----------------------------------------------------
+//    Rebuilds the GraphQL document and variables from the current
+//    filter/sort state, then triggers a reactive refetch.
+// ================================================================
 
+// Mutable query skeleton — __variables and __args are rebuilt on every get() call
 const q = {
   query: {
     __name: "MyQuery",
@@ -651,79 +648,84 @@ const {
   refetch: a_get,
 } = useQuery(queryDoc, queryVariables);
 
-// Execute search using populated filter parameters
+/**
+ * Rebuild and execute the query from the current filter + sort UI state.
+ * Walks active paths to construct deeply nested filter/sort payloads,
+ * then recompiles the GraphQL document and swaps variables to trigger Apollo's reactive refetch.
+ */
 function get() {
   q.query.__variables = {};
   q.query[ROOT].__args = {};
   const newVariables: any = {};
 
+  // --- Build filter payload ---
+  // Walk each active filter path and nest values into a deeply nested object
+  // e.g. paths [brand → name → icontains:"x"] becomes { brand: { name: { icontains: "x" } } }
   let filterPayload: any = {};
 
-  // Compute a deeply nested object out of the flat visual paths
   activeFilterPaths.value.forEach((path) => {
     let currentLevel = filterPayload;
 
     for (let i = 0; i < path.length; i++) {
       const node = path[i].selected;
 
-      // We skip evaluating blank payload inputs so as not to query `contains: ""` universally
       if (i === path.length - 1) {
-        if (node.value !== "" && node.value !== undefined) {
+        // Leaf: assign the value (skip blanks to avoid querying `contains: ""`)
+        if (node.value !== "" && node.value !== undefined)
           currentLevel[node.name] = node.value;
-        }
       } else {
-        if (!currentLevel[node.name]) {
-          currentLevel[node.name] = {};
-        }
+        // Branch: ensure nested object exists and descend
+        currentLevel[node.name] ??= {};
         currentLevel = currentLevel[node.name];
       }
     }
   });
 
-  // Attach recursive nested JSON schema to standard variable wrapper
+  // Attach filter variable if any filters have values
   if (Object.keys(filterPayload).length > 0 && tool_root.value !== "") {
     q.query.__variables["filter"] = tool_root.value;
     q.query[ROOT].__args["filter"] = new VariableType("filter");
     newVariables["filter"] = filterPayload;
   }
 
-  // Build sort payload from active sort paths
+  // --- Build sort payload ---
+  // Same nesting logic as filters, but leaf values are "ASC"/"DESC" instead of user input
+  // e.g. paths [brand → name → ASC, name → DESC] becomes { brand: { name: "ASC" }, name: "DESC" }
   let sortPayload: any = {};
   activeSortPaths.value.forEach((path) => {
     let currentLevel = sortPayload;
     for (let i = 0; i < path.length; i++) {
       const node = path[i].selected;
       if (i === path.length - 1) {
-        if (node.value !== "" && node.value !== undefined) {
+        if (node.value !== "" && node.value !== undefined)
           currentLevel[node.name] = node.value;
-        }
       } else {
-        if (!currentLevel[node.name]) {
-          currentLevel[node.name] = {};
-        }
+        currentLevel[node.name] ??= {};
         currentLevel = currentLevel[node.name];
       }
     }
   });
 
+  // Attach orderBy variable. Wrap in array if the schema type is a LIST.
   if (Object.keys(sortPayload).length > 0 && sort_var_type.value !== "") {
     q.query.__variables["orderBy"] = sort_var_type.value;
     q.query[ROOT].__args["orderBy"] = new VariableType("orderBy");
-    // Wrap in array if the type is a list (starts with '[')
     newVariables["orderBy"] = sort_var_type.value.startsWith("[")
       ? [sortPayload]
       : sortPayload;
   }
 
+  // Recompile the query document and swap variables to trigger Apollo's reactive refetch
   queryDoc.value = gql(jtg(q));
   queryVariables.value = newVariables;
 }
 
-// Ensure "ENTER" typed into leaf input blocks sends query refresh
+/** Proxy so template @keyup.enter and @change handlers read clearly */
 function commitFilterValue() {
   get();
 }
 
+/** Convenience accessor for the current query result's root field */
 function getEdges() {
   return a_r.value?.[ROOT];
 }
@@ -773,11 +775,11 @@ function getEdges() {
         </div>
       </div>
 
-      <!-- FILTERS PANEL -->
+      <!-- FILTERS & SORTS PANEL -->
       <div v-if="!q_e" class="card mb-4">
         <ul v-if="show_filters" class="list-group list-group-flush">
           <li class="list-group-item">
-            <!-- Add new filter topbar -->
+            <!-- Filter topbar: count + "Add Filter" dropdown -->
             <div
               class="d-flex align-items-center justify-content-between mb-2"
             >
@@ -810,7 +812,6 @@ function getEdges() {
                       :placeholder="topLevelFilters().length + ' Filters...'"
                     />
                   </li>
-                  <!-- Show list of active root options -->
                   <li v-for="f in searchFields()" :key="f.name">
                     <button
                       class="dropdown-item text-capitalize"
@@ -823,7 +824,7 @@ function getEdges() {
               </div>
             </div>
 
-            <!-- Flattened Dynamic Pathways Layout  -->
+            <!-- Filter grid: each row is one active filter path -->
             <div
               v-if="filterGrid.length"
               class="border-top pt-2 mt-2 overflow-x-auto"
@@ -839,12 +840,12 @@ function getEdges() {
                       :key="'cell-' + cIdx"
                     >
                       <template v-if="!cell.isSpanned">
+                        <!-- Col 0: clickable branch label that expands the next sibling -->
                         <td
                           v-if="cIdx === 0"
                           :rowspan="cell.rowSpan"
                           style="height: 1px"
                         >
-                          <!-- Level 0: Add new filter branch button -->
                           <button
                             class="btn btn-outline-primary btn-sm text-capitalize w-100 rounded-start-pill px-3 h-100 w-100"
                             style="min-height: 31px"
@@ -853,7 +854,7 @@ function getEdges() {
                             {{ camel(cell.level.selected.name) }}
                           </button>
                         </td>
-                        <!-- Level > 0: Show options available at this depth level  -->
+                        <!-- Col > 0: dropdown to swap between sibling options at this depth -->
                         <td v-else :rowspan="cell.rowSpan" style="height: 1px">
                           <select
                             :value="cell.level.selected.name"
@@ -871,13 +872,13 @@ function getEdges() {
                           </select>
                         </td>
 
-                        <!-- Conditionally drop the input box based on types  -->
+                        <!-- Leaf cell: value input, type depends on the field's GraphQL type -->
                         <td
                           v-if="cell.level.isLeaf"
                           :rowspan="cell.rowSpan"
                           style="height: 1px"
                         >
-                          <!-- Boolean Type: Show Dropdown -->
+                          <!-- Boolean: true/false dropdown -->
                           <select
                             v-if="cell.level.fieldType === 'Boolean'"
                             v-model="cell.level.selected.value"
@@ -890,7 +891,7 @@ function getEdges() {
                             <option :value="false">False</option>
                           </select>
 
-                          <!-- Standard Datatypes: Show Text Box -->
+                          <!-- Numeric / text input -->
                           <input
                             v-else
                             :type="
@@ -909,7 +910,7 @@ function getEdges() {
                         </td>
                       </template>
                     </template>
-                    <!-- Delete Button for the path -->
+                    <!-- Delete: removes this filter path -->
                     <td>
                       <button
                         class="btn btn-outline-danger btn-sm rounded-end-pill"
@@ -924,7 +925,8 @@ function getEdges() {
               </table>
             </div>
           </li>
-          <!-- Sorts Block -->
+
+          <!-- Sort topbar + grid (mirrors filter UI but leaf is ASC/DESC dropdown) -->
           <li class="list-group-item">
             <div
               class="d-flex align-items-center justify-content-between mb-2"
@@ -970,7 +972,7 @@ function getEdges() {
               </div>
             </div>
 
-            <!-- Sort Grid Layout -->
+            <!-- Sort grid layout -->
             <div
               v-if="sortGrid.length"
               class="border-top pt-2 mt-2 overflow-x-auto"
@@ -1016,7 +1018,7 @@ function getEdges() {
                           </select>
                         </td>
 
-                        <!-- Sort direction dropdown (ASC/DESC) -->
+                        <!-- Sort direction: ASC / DESC -->
                         <td
                           v-if="cell.level.isLeaf"
                           :rowspan="cell.rowSpan"
@@ -1034,7 +1036,7 @@ function getEdges() {
                         </td>
                       </template>
                     </template>
-                    <!-- Delete Button -->
+                    <!-- Delete: removes this sort path -->
                     <td>
                       <button
                         class="btn btn-outline-danger btn-sm rounded-end-pill"
@@ -1049,6 +1051,8 @@ function getEdges() {
               </table>
             </div>
           </li>
+
+          <!-- Collapse toggle -->
           <li
             class="list-group-item d-flex align-items-center justify-content-center text-center p-0"
           >
@@ -1059,6 +1063,8 @@ function getEdges() {
             </button>
           </li>
         </ul>
+
+        <!-- Collapsed summary -->
         <ul v-else class="list-group list-group-flush">
           <li
             class="list-group-item d-flex align-items-center justify-content-between"
@@ -1074,7 +1080,7 @@ function getEdges() {
         </ul>
       </div>
 
-      <!-- DATA OVERVIEW -->
+      <!-- DATA TABLE -->
       <div>
         <template v-if="a_l">
           <h5 class="alert alert-primary text-center m-0">Loading...</h5>

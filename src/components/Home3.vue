@@ -7,7 +7,7 @@ import {
 import { ref, watch, computed, nextTick } from "vue";
 
 // root object config
-const ROOT = "toolMetrics";
+const ROOT = "tools";
 const NON_MODEL_ARGS = [
   "filter",
   "first",
@@ -28,10 +28,14 @@ const search_fields = ref("");
 const fields = ref<any[]>([]); // root level generic graphql args
 const tool_root = ref("");
 const filters = ref<any[]>([]); // dynamically nested schema filter options
-const sorts = ref([]);
+const sort_root = ref("");
+const sort_var_type = ref("");
+const sort_types = ref<any[]>([]);
+const search_sort_fields = ref("");
 
 // Modals / Refs
 const searchFilters = ref<any>(null);
+const searchSortFilters = ref<any>(null);
 
 // Strip __typename recursively
 const stripTypename = (obj: any): any => {
@@ -67,6 +71,14 @@ const fields_query = {
             kind: true,
             name: true,
             description: true,
+            ofType: {
+              kind: true,
+              name: true,
+              ofType: {
+                kind: true,
+                name: true,
+              },
+            },
           },
         },
       },
@@ -103,6 +115,30 @@ watch(q_r, (value) => {
     tool_root.value = filterArg.type.name;
     getFilters(filterArg.type.name);
   }
+
+  // Locate the 'orderBy' argument for sort introspection
+  const orderByArg = f.find((o: any) => o.name === "orderBy");
+  if (orderByArg) {
+    // Rebuild the full GraphQL type string (e.g. "[TypeName!]") and extract the inner INPUT_OBJECT name
+    function unwrapType(t: any): { varType: string; innerName: string } {
+      if (!t) return { varType: "", innerName: "" };
+      if (t.kind === "NON_NULL") {
+        const inner = unwrapType(t.ofType);
+        return { varType: inner.varType + "!", innerName: inner.innerName };
+      }
+      if (t.kind === "LIST") {
+        const inner = unwrapType(t.ofType);
+        return { varType: `[${inner.varType}]`, innerName: inner.innerName };
+      }
+      return { varType: t.name || "", innerName: t.name || "" };
+    }
+    const { varType, innerName } = unwrapType(orderByArg.type);
+    if (innerName) {
+      sort_root.value = innerName;
+      sort_var_type.value = varType;
+      getSortTypes(innerName);
+    }
+  }
 });
 
 const input_query = {
@@ -132,6 +168,13 @@ const {
   load: f_l,
   error: f_err,
   refetch: f_get,
+} = useLazyQuery(gql(jtg(input_query)));
+
+const {
+  result: s_r,
+  load: s_l,
+  error: s_err,
+  refetch: s_get,
 } = useLazyQuery(gql(jtg(input_query)));
 
 // Recursively build up memory list of all nested filter object types
@@ -170,6 +213,46 @@ async function getFilters(typeName: string) {
   for (const o of inf.inputFields) {
     if (o.type.kind === "INPUT_OBJECT") {
       await getFilters(o.type.name);
+    }
+  }
+}
+
+// Recursively build up memory list of all nested sort object types
+async function getSortTypes(typeName: string) {
+  let data;
+  if (s_r.value === undefined) {
+    data = await s_l(null, { name: typeName });
+  } else {
+    const response = await s_get({ name: typeName });
+    data = response?.data;
+  }
+
+  if (!data?.__type?.inputFields) return;
+
+  let inf = stripTypename(data.__type);
+  inf.inputFields = inf.inputFields.filter(
+    (o: any) => !NON_MODEL_ARGS.includes(o.name)
+  );
+
+  inf.on = false;
+  inf.value = "";
+  inf.inputFields.map((o: any) => {
+    o.on = false;
+    o.value = "";
+  });
+
+  const existingIndex = sort_types.value.findIndex(
+    (f: any) => f.name === inf.name
+  );
+  if (existingIndex !== -1) {
+    Object.assign(sort_types.value[existingIndex], inf);
+  } else {
+    sort_types.value.push(inf);
+  }
+
+  for (const o of inf.inputFields) {
+    if (o.type.kind === "INPUT_OBJECT") {
+      await getSortTypes(o.type.name);
     }
   }
 }
@@ -366,6 +449,175 @@ function deletePath(path: any[]) {
 }
 
 // ----------------------------------------------------
+// 2b. SORT UI LOGIC
+// ----------------------------------------------------
+
+function topLevelSorts() {
+  const rootObj = sort_types.value.find(
+    (o: any) => o.name === sort_root.value
+  );
+  return rootObj?.inputFields || [];
+}
+
+function searchSortFieldsFn() {
+  const searchStr = search_sort_fields.value.toLowerCase();
+  return topLevelSorts().filter(
+    (arg: any) => arg.name.toLowerCase().includes(searchStr) && !arg.on
+  );
+}
+
+function enableSort(inputField: any) {
+  inputField.on = true;
+
+  if (inputField.type?.kind === "INPUT_OBJECT" && inputField.type?.name) {
+    const sortObj = sort_types.value.find(
+      (f: any) => f.name === inputField.type.name
+    );
+    if (sortObj) {
+      sortObj.on = true;
+      if (
+        sortObj.inputFields &&
+        sortObj.inputFields.length > 0 &&
+        !sortObj.inputFields[0].on
+      ) {
+        enableSort(sortObj.inputFields[0]);
+      }
+    }
+  } else {
+    // Leaf node (ENUM direction) - default to ASC
+    if (!inputField.value) inputField.value = "ASC";
+  }
+
+  get();
+}
+
+const activeSortPaths = computed(() => {
+  const paths: any[][] = [];
+  const rootObj = sort_types.value.find(
+    (o: any) => o.name === sort_root.value
+  );
+  if (!rootObj || !rootObj.inputFields) return paths;
+
+  function traverse(currentObj: any, currentPath: any[]) {
+    if (!currentObj.inputFields) {
+      if (currentPath.length > 0) paths.push(currentPath);
+      return;
+    }
+
+    const activeFields = currentObj.inputFields.filter((f: any) => f.on);
+
+    if (activeFields.length === 0) {
+      if (currentPath.length > 0) paths.push(currentPath);
+      return;
+    }
+
+    for (const field of activeFields) {
+      const isLeaf = field.type?.kind !== "INPUT_OBJECT";
+
+      const levelNode = {
+        selected: field,
+        options: currentObj.inputFields,
+        isLeaf: isLeaf,
+        fieldType: field.type?.name || "String",
+      };
+
+      const newPath = [...currentPath, levelNode];
+
+      if (isLeaf) {
+        paths.push(newPath);
+      } else {
+        const nextObj = sort_types.value.find(
+          (f: any) => f.name === field.type?.name
+        );
+        if (nextObj) {
+          traverse(nextObj, newPath);
+        } else {
+          paths.push(newPath);
+        }
+      }
+    }
+  }
+
+  traverse(rootObj, []);
+  return paths;
+});
+
+const sortGrid = computed(() => {
+  const paths = activeSortPaths.value;
+  const grid: any[][] = paths.map(() => []);
+
+  for (let row = 0; row < paths.length; row++) {
+    for (let col = 0; col < paths[row].length; col++) {
+      if (grid[row]?.[col]?.isSpanned) continue;
+
+      const level = paths[row][col];
+      if (!level) continue;
+
+      let span = 1;
+
+      for (let r = row + 1; r < paths.length; r++) {
+        let isMatch = true;
+        for (let c = 0; c <= col; c++) {
+          if (
+            !paths[r]?.[c] ||
+            paths[r][c]?.selected?.name !== paths[row][c]?.selected?.name
+          ) {
+            isMatch = false;
+            break;
+          }
+        }
+        if (isMatch) {
+          span++;
+        } else {
+          break;
+        }
+      }
+
+      grid[row][col] = {
+        level: level,
+        rowSpan: span,
+        colIdx: col,
+        rowIdx: row,
+      };
+
+      for (let r = row + 1; r < row + span; r++) {
+        if (!grid[r]) grid[r] = [];
+        grid[r][col] = { isSpanned: true };
+      }
+    }
+  }
+
+  return grid;
+});
+
+function changeSortNode(level: any, event: Event) {
+  const target = event.target as HTMLSelectElement;
+  if (!target) return;
+  const newOptionName = target.value;
+  if (level.selected.name === newOptionName) return;
+
+  level.selected.on = false;
+  const newOption = level.options.find((o: any) => o.name === newOptionName);
+  if (newOption) {
+    enableSort(newOption);
+  }
+}
+
+function addNextSort(level: any) {
+  if (level.selected.type?.name) {
+    const sortObj = sort_types.value.find(
+      (f: any) => f.name === level.selected.type.name
+    );
+    if (sortObj && sortObj.inputFields) {
+      const nextField = sortObj.inputFields.find((f: any) => !f.on);
+      if (nextField) {
+        enableSort(nextField);
+      }
+    }
+  }
+}
+
+// ----------------------------------------------------
 // 3. MAIN LIVE DATA QUERY
 // ----------------------------------------------------
 
@@ -378,9 +630,9 @@ const q = {
       edges: {
         node: {
           id: true,
-          value: true,
-          // name: true,
-          // brand: { name: true },
+          // value: true,
+          name: true,
+          brand: { name: true },
         },
       },
       count: true,
@@ -433,6 +685,34 @@ function get() {
     q.query.__variables["filter"] = tool_root.value;
     q.query[ROOT].__args["filter"] = new VariableType("filter");
     newVariables["filter"] = filterPayload;
+  }
+
+  // Build sort payload from active sort paths
+  let sortPayload: any = {};
+  activeSortPaths.value.forEach((path) => {
+    let currentLevel = sortPayload;
+    for (let i = 0; i < path.length; i++) {
+      const node = path[i].selected;
+      if (i === path.length - 1) {
+        if (node.value !== "" && node.value !== undefined) {
+          currentLevel[node.name] = node.value;
+        }
+      } else {
+        if (!currentLevel[node.name]) {
+          currentLevel[node.name] = {};
+        }
+        currentLevel = currentLevel[node.name];
+      }
+    }
+  });
+
+  if (Object.keys(sortPayload).length > 0 && sort_var_type.value !== "") {
+    q.query.__variables["orderBy"] = sort_var_type.value;
+    q.query[ROOT].__args["orderBy"] = new VariableType("orderBy");
+    // Wrap in array if the type is a list (starts with '[')
+    newVariables["orderBy"] = sort_var_type.value.startsWith("[")
+      ? [sortPayload]
+      : sortPayload;
   }
 
   queryDoc.value = gql(jtg(q));
@@ -646,10 +926,127 @@ function getEdges() {
           </li>
           <!-- Sorts Block -->
           <li class="list-group-item">
-            <div class="d-flex align-items-center justify-content-between">
+            <div
+              class="d-flex align-items-center justify-content-between mb-2"
+            >
               <h5 class="m-0">
-                <b>{{ sorts.length }} Sorts</b>
+                <b>{{ activeSortPaths.length }} Sorts</b>
               </h5>
+              <div class="dropdown">
+                <button
+                  class="btn btn-primary btn-sm"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                  :disabled="!!(q_l || q_e)"
+                  @click="
+                    nextTick(() => {
+                      search_sort_fields = '';
+                      searchSortFilters?.focus();
+                    })
+                  "
+                >
+                  <i class="bi bi-plus-lg"></i>
+                  Sort
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li class="mx-2 mb-1">
+                    <input
+                      ref="searchSortFilters"
+                      v-model="search_sort_fields"
+                      class="form-control py-1"
+                      type="text"
+                      :placeholder="topLevelSorts().length + ' Sorts...'"
+                    />
+                  </li>
+                  <li v-for="f in searchSortFieldsFn()" :key="f.name">
+                    <button
+                      class="dropdown-item text-capitalize"
+                      @click="enableSort(f)"
+                    >
+                      {{ camel(f.name) }}
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Sort Grid Layout -->
+            <div
+              v-if="sortGrid.length"
+              class="border-top pt-2 mt-2 overflow-x-auto"
+            >
+              <table>
+                <tbody>
+                  <tr
+                    v-for="(rowCells, rIdx) in sortGrid"
+                    :key="'sort-row-' + rIdx"
+                  >
+                    <template
+                      v-for="(cell, cIdx) in rowCells"
+                      :key="'sort-cell-' + cIdx"
+                    >
+                      <template v-if="!cell.isSpanned">
+                        <td
+                          v-if="cIdx === 0"
+                          :rowspan="cell.rowSpan"
+                          style="height: 1px"
+                        >
+                          <button
+                            class="btn btn-outline-primary btn-sm text-capitalize w-100 rounded-start-pill px-3 h-100"
+                            style="min-height: 31px"
+                            @click="addNextSort(cell.level)"
+                          >
+                            {{ camel(cell.level.selected.name) }}
+                          </button>
+                        </td>
+                        <td v-else :rowspan="cell.rowSpan" style="height: 1px">
+                          <select
+                            :value="cell.level.selected.name"
+                            @change="changeSortNode(cell.level, $event)"
+                            class="btn btn-outline-secondary btn-sm text-capitalize border-secondary text-center rounded-0 h-100 w-100"
+                            style="min-height: 31px"
+                          >
+                            <option
+                              v-for="opt in cell.level.options"
+                              :key="opt.name"
+                              :value="opt.name"
+                            >
+                              {{ camel(opt.name) }}
+                            </option>
+                          </select>
+                        </td>
+
+                        <!-- Sort direction dropdown (ASC/DESC) -->
+                        <td
+                          v-if="cell.level.isLeaf"
+                          :rowspan="cell.rowSpan"
+                          style="height: 1px"
+                        >
+                          <select
+                            v-model="cell.level.selected.value"
+                            class="btn btn-outline-secondary btn-sm border-secondary rounded-0 h-100 w-100"
+                            style="min-height: 31px"
+                            @change="get()"
+                          >
+                            <option value="ASC">ASC</option>
+                            <option value="DESC">DESC</option>
+                          </select>
+                        </td>
+                      </template>
+                    </template>
+                    <!-- Delete Button -->
+                    <td>
+                      <button
+                        class="btn btn-outline-danger btn-sm rounded-end-pill"
+                        style="height: 100%; min-height: 31px"
+                        @click="deletePath(activeSortPaths[rIdx] || [])"
+                      >
+                        <i class="bi bi-trash3"></i>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </li>
           <li
@@ -672,7 +1069,7 @@ function getEdges() {
               expand
               <i class="bi bi-chevron-down"></i>
             </button>
-            <b>{{ sorts.length }} Sorts</b>
+            <b>{{ activeSortPaths.length }} Sorts</b>
           </li>
         </ul>
       </div>

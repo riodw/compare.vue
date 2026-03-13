@@ -283,22 +283,36 @@ function topLevel(mode: "F" | "O") {
 }
 
 /** Filter the dropdown items by the search text, excluding already-active fields */
-function searchFields() {
-  const searchStr = search_fields.value.toLowerCase();
-  return topLevel('F').filter(
+function searchFieldsFn(mode: "F" | "O") {
+  const searchStr = (mode === "F" ? search_fields : search_sort_fields).value.toLowerCase();
+  return topLevel(mode).filter(
     (arg: any) => arg.name.toLowerCase().includes(searchStr) && !arg.on
   );
 }
 
 /**
- * Walk the filter type tree and collect every active branch as a linear path.
+ * Walk a type tree and collect every active branch as a linear path.
  * Each path is an array of { selected, options, isLeaf, fieldType } nodes
- * representing one row in the filter grid UI.
+ * representing one row in the grid UI.
+ * "F" = filter (leaf = SCALAR or known primitive).
+ * "O" = order  (leaf = anything that isn't INPUT_OBJECT, typically ENUM).
  */
-const activeFilterPaths = computed(() => {
+function activePaths(mode: "F" | "O") {
+  const [store, root] =
+    mode === "F" ? [filters, tool_root] : [sort_types, sort_root];
   const paths: any[][] = [];
-  const rootObj = filters.value.find((o: any) => o.name === tool_root.value);
+  const rootObj = store.value.find((o: any) => o.name === root.value);
   if (!rootObj?.inputFields) return paths;
+
+  function isLeaf(field: any) {
+    if (mode === "O") return field.type?.kind !== "INPUT_OBJECT";
+    return (
+      field.type?.kind === "SCALAR" ||
+      ["String", "Boolean", "Int", "Float", "Decimal", "ID"].includes(
+        field.type?.name
+      )
+    );
+  }
 
   function traverse(currentObj: any, currentPath: any[]) {
     // Terminal: no further fields to recurse into
@@ -316,26 +330,19 @@ const activeFilterPaths = computed(() => {
     }
 
     for (const field of activeFields) {
-      // Leaf = scalar type or known primitive — these get an input/select in the UI
-      const isLeaf =
-        field.type?.kind === "SCALAR" ||
-        ["String", "Boolean", "Int", "Float", "Decimal", "ID"].includes(
-          field.type?.name
-        );
-
+      const leaf = isLeaf(field);
       const levelNode = {
         selected: field,
         options: currentObj.inputFields,
-        isLeaf,
+        isLeaf: leaf,
         fieldType: field.type?.name || "String",
       };
 
       const newPath = [...currentPath, levelNode];
 
-      if (isLeaf) paths.push(newPath);
+      if (leaf) paths.push(newPath);
       else {
-        // Recurse deeper into the nested INPUT_OBJECT
-        const nextObj = filters.value.find(
+        const nextObj = store.value.find(
           (f: any) => f.name === field.type?.name
         );
         if (nextObj) traverse(nextObj, newPath);
@@ -346,7 +353,10 @@ const activeFilterPaths = computed(() => {
 
   traverse(rootObj, []);
   return paths;
-});
+}
+
+const activeFilterPaths = computed(() => activePaths("F"));
+const activeSortPaths = computed(() => activePaths("O"));
 
 /**
  * Transform flat paths into a 2D grid with merged cells (rowspans).
@@ -398,7 +408,7 @@ const filterGrid = computed(() => {
 });
 
 /** Swap the selected node at a given level to a different option (via select change) */
-function changeNode(level: any, event: Event) {
+function changeNode(level: any, event: Event, mode: "F" | "O") {
   const target = event.target as HTMLSelectElement;
   if (!target) return;
   const newOptionName = target.value;
@@ -407,17 +417,18 @@ function changeNode(level: any, event: Event) {
   // Deactivate old branch, activate new one
   level.selected.on = false;
   const newOption = level.options.find((o: any) => o.name === newOptionName);
-  if (newOption) enable(newOption, "F");
+  if (newOption) enable(newOption, mode);
 }
 
-/** Expand the next unused sibling field within a filter branch */
-function addNextFilter(level: any) {
+/** Expand the next unused sibling field within a branch */
+function addNext(level: any, mode: "F" | "O") {
   if (!level.selected.type?.name) return;
-  const filterObj = filters.value.find(
+  const store = mode === "F" ? filters : sort_types;
+  const obj = store.value.find(
     (f: any) => f.name === level.selected.type.name
   );
-  const nextField = filterObj?.inputFields?.find((f: any) => !f.on);
-  if (nextField) enable(nextField, "F");
+  const nextField = obj?.inputFields?.find((f: any) => !f.on);
+  if (nextField) enable(nextField, mode);
 }
 
 /** Walk backwards along a path turning off nodes; stop when a sibling is still active */
@@ -437,64 +448,8 @@ function deletePath(path: any[]) {
 // ================================================================
 
 
-/** Filter sort dropdown items by search text, excluding already-active fields */
-function searchSortFieldsFn() {
-  const searchStr = search_sort_fields.value.toLowerCase();
-  return topLevel('O').filter(
-    (arg: any) => arg.name.toLowerCase().includes(searchStr) && !arg.on
-  );
-}
 
 
-/**
- * Collect active sort branches as linear paths (same traversal pattern as filters).
- * Leaf detection uses kind !== INPUT_OBJECT to catch ENUM sort directions.
- */
-const activeSortPaths = computed(() => {
-  const paths: any[][] = [];
-  const rootObj = sort_types.value.find(
-    (o: any) => o.name === sort_root.value
-  );
-  if (!rootObj?.inputFields) return paths;
-
-  function traverse(currentObj: any, currentPath: any[]) {
-    if (!currentObj.inputFields) {
-      if (currentPath.length > 0) paths.push(currentPath);
-      return;
-    }
-
-    const activeFields = currentObj.inputFields.filter((f: any) => f.on);
-
-    if (!activeFields.length)
-      if (currentPath.length > 0) return paths.push(currentPath);
-
-    for (const field of activeFields) {
-      // For sorts, anything that isn't INPUT_OBJECT is a leaf (typically ENUM: ASC/DESC)
-      const isLeaf = field.type?.kind !== "INPUT_OBJECT";
-
-      const levelNode = {
-        selected: field,
-        options: currentObj.inputFields,
-        isLeaf,
-        fieldType: field.type?.name || "String",
-      };
-
-      const newPath = [...currentPath, levelNode];
-
-      if (isLeaf) paths.push(newPath);
-      else {
-        const nextObj = sort_types.value.find(
-          (f: any) => f.name === field.type?.name
-        );
-        if (nextObj) traverse(nextObj, newPath);
-        else paths.push(newPath);
-      }
-    }
-  }
-
-  traverse(rootObj, []);
-  return paths;
-});
 
 /** Generate a stable identity key for a sort path (e.g. "brand.name" or "category.name") */
 function sortPathKey(path: any[]) {
@@ -565,27 +520,7 @@ function onSortDrop(idx: number) {
   nextTick(() => get());
 }
 
-/** Swap a sort node to a different option (same pattern as changeNode for filters) */
-function changeSortNode(level: any, event: Event) {
-  const target = event.target as HTMLSelectElement;
-  if (!target) return;
-  const newOptionName = target.value;
-  if (level.selected.name === newOptionName) return;
 
-  level.selected.on = false;
-  const newOption = level.options.find((o: any) => o.name === newOptionName);
-  if (newOption) enable(newOption, "O");
-}
-
-/** Expand the next unused sibling field within a sort branch */
-function addNextSort(level: any) {
-  if (!level.selected.type?.name) return;
-  const sortObj = sort_types.value.find(
-    (f: any) => f.name === level.selected.type.name
-  );
-  const nextField = sortObj?.inputFields?.find((f: any) => !f.on);
-  if (nextField) enable(nextField, "O");
-}
 
 // ================================================================
 // 3. MAIN LIVE DATA QUERY
@@ -838,7 +773,7 @@ function changePageSize(val: number) {
                       :placeholder="topLevel('F').length + ' Filters...'"
                     />
                   </li>
-                  <li v-for="f in searchFields()" :key="f.name">
+                  <li v-for="f in searchFieldsFn('F')" :key="f.name">
                     <button
                       class="dropdown-item text-capitalize"
                       @click="enable(f, 'F')"
@@ -875,7 +810,7 @@ function changePageSize(val: number) {
                           <button
                             class="btn btn-outline-primary btn-sm text-capitalize w-100 rounded-start-pill px-3 h-100 w-100"
                             style="min-height: 31px"
-                            @click="addNextFilter(cell.level)"
+                            @click="addNext(cell.level, 'F')"
                           >
                             {{ camel(cell.level.selected.name) }}
                           </button>
@@ -884,7 +819,7 @@ function changePageSize(val: number) {
                         <td v-else :rowspan="cell.rowSpan" style="height: 1px">
                           <select
                             :value="cell.level.selected.name"
-                            @change="changeNode(cell.level, $event)"
+                            @change="changeNode(cell.level, $event, 'F')"
                             class="btn btn-outline-secondary btn-sm text-capitalize border-secondary text-center rounded-0 h-100 w-100"
                             style="min-height: 31px"
                           >
@@ -986,7 +921,7 @@ function changePageSize(val: number) {
                       :placeholder="topLevel('O').length + ' Sorts...'"
                     />
                   </li>
-                  <li v-for="f in searchSortFieldsFn()" :key="f.name">
+                  <li v-for="f in searchFieldsFn('O')" :key="f.name">
                     <button
                       class="dropdown-item text-capitalize"
                       @click="enable(f, 'O')"
@@ -1047,7 +982,7 @@ function changePageSize(val: number) {
                         <button
                           class="btn btn-outline-primary btn-sm text-capitalize w-100 rounded-start-pill px-3 h-100"
                           style="min-height: 31px"
-                          @click="addNextSort(level)"
+                          @click="addNext(level, 'O')"
                         >
                           {{ camel(level.selected.name) }}
                         </button>
@@ -1056,7 +991,7 @@ function changePageSize(val: number) {
                       <td v-else style="height: 1px">
                         <select
                           :value="level.selected.name"
-                          @change="changeSortNode(level, $event)"
+                          @change="changeNode(level, $event, 'O')"
                           class="btn btn-outline-secondary btn-sm text-capitalize border-secondary text-center rounded-0 h-100 w-100"
                           style="min-height: 31px"
                         >

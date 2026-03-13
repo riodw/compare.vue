@@ -38,6 +38,8 @@ const search_sort_fields = ref(""); // search text inside the "Add Sort" dropdow
 const sort_path_order = ref<string[]>([]); // user's desired sort priority order (path keys)
 const drag_sort_idx = ref<number | null>(null); // index of the row currently being dragged
 const drag_over_sort_idx = ref<number | null>(null); // index of the row being hovered over
+const page_size = ref(100); // number of results per page
+const current_page = ref(1); // 1-indexed current page
 
 // ---- Template Refs ----
 const searchFilters = ref<any>(null);
@@ -680,7 +682,9 @@ const {
  * Walks active paths to construct deeply nested filter/sort payloads,
  * then recompiles the GraphQL document and swaps variables to trigger Apollo's reactive refetch.
  */
-function get() {
+function get(resetPage = true) {
+  if (resetPage) current_page.value = 1;
+
   q.query.__variables = {};
   q.query[ROOT].__args = {};
   const newVariables: any = {};
@@ -742,6 +746,14 @@ function get() {
       : sortPayload;
   }
 
+  // --- Attach pagination variables ---
+  q.query.__variables["first"] = "Int";
+  q.query.__variables["offset"] = "Int";
+  q.query[ROOT].__args["first"] = new VariableType("first");
+  q.query[ROOT].__args["offset"] = new VariableType("offset");
+  newVariables["first"] = page_size.value;
+  newVariables["offset"] = paginationOffset.value;
+
   // Recompile the query document and swap variables to trigger Apollo's reactive refetch
   queryDoc.value = gql(jtg(q));
   queryVariables.value = newVariables;
@@ -755,6 +767,39 @@ function commitFilterValue() {
 /** Convenience accessor for the current query result's root field */
 function getEdges() {
   return a_r.value?.[ROOT];
+}
+
+// ================================================================
+// 5. PAGINATION
+//    Offset-based pagination using first/offset variables.
+// ================================================================
+
+/** Total number of pages based on result count and page size */
+const totalPages = computed(() => {
+  const count = getEdges()?.count || 0;
+  return Math.max(1, Math.ceil(count / page_size.value));
+});
+
+/** Zero-based offset for the current page */
+const paginationOffset = computed(() => (current_page.value - 1) * page_size.value);
+
+/**
+ * Navigate to a specific page and refetch.
+ * Unlike filter/sort changes, this does NOT reset current_page to 1.
+ */
+function goToPage(n: number) {
+  current_page.value = Math.max(1, Math.min(n, totalPages.value));
+  get(false);
+}
+
+/**
+ * Handle page size changes from the input field.
+ * Clamps to a minimum of 1, resets to page 1, and refetches.
+ */
+function changePageSize(val: number) {
+  page_size.value = Math.max(1, val || 1);
+  current_page.value = 1;
+  get();
 }
 </script>
 
@@ -1176,6 +1221,52 @@ function getEdges() {
           </table>
         </div>
         <h5 v-else class="alert alert-warning text-center m-0">No Results</h5>
+      </div>
+
+      <!-- PAGINATION -->
+      <div
+        v-if="getEdges()?.count"
+        class="d-flex align-items-center justify-content-between my-3 flex-wrap gap-2"
+      >
+        <!-- Showing X–Y of Z using count (total) and counts (this page) -->
+        <span class="text-muted small">
+          Showing
+          {{ paginationOffset + 1 }}–{{
+            paginationOffset + (getEdges()?.counts || 0)
+          }}
+          of {{ getEdges()?.count }}
+        </span>
+
+        <!-- Page number buttons -->
+        <div class="d-flex flex-wrap gap-1">
+          <button
+            v-for="p in totalPages"
+            :key="p"
+            class="btn btn-sm"
+            :class="
+              p === current_page
+                ? 'btn-primary'
+                : 'btn-outline-secondary'
+            "
+            style="min-width: 2.2rem"
+            @click="goToPage(p)"
+          >
+            {{ p }}
+          </button>
+        </div>
+
+        <!-- Page size input -->
+        <div class="d-flex align-items-center gap-1">
+          <label class="text-muted small mb-0">Per page:</label>
+          <input
+            type="number"
+            class="form-control form-control-sm text-center"
+            style="width: 5rem"
+            :value="page_size"
+            min="1"
+            @change="changePageSize(+($event.target as HTMLInputElement).value)"
+          />
+        </div>
       </div>
     </div>
   </div>

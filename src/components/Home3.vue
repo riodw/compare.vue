@@ -35,6 +35,9 @@ const sort_root = ref(""); // introspected INPUT_OBJECT name for the sort type
 const sort_var_type = ref(""); // full GraphQL variable type string e.g. "[ToolOrder!]"
 const sort_types = ref<any[]>([]); // flat list of all introspected sort INPUT_OBJECT types
 const search_sort_fields = ref(""); // search text inside the "Add Sort" dropdown
+const sort_path_order = ref<string[]>([]); // user's desired sort priority order (path keys)
+const drag_sort_idx = ref<number | null>(null); // index of the row currently being dragged
+const drag_over_sort_idx = ref<number | null>(null); // index of the row being hovered over
 
 // ---- Template Refs ----
 const searchFilters = ref<any>(null);
@@ -544,50 +547,74 @@ const activeSortPaths = computed(() => {
   return paths;
 });
 
-/** Build the sort grid with merged rowspans (same algorithm as filterGrid) */
-const sortGrid = computed(() => {
+/** Generate a stable identity key for a sort path (e.g. "brand.name" or "category.name") */
+function sortPathKey(path: any[]) {
+  return path.map((p) => p.selected.name).join(".");
+}
+
+/**
+ * Reorder activeSortPaths according to the user's drag-and-drop ordering.
+ * Paths present in sort_path_order come first (in that order), then any newly added paths.
+ */
+const orderedSortPaths = computed(() => {
   const paths = activeSortPaths.value;
-  const grid: any[][] = paths.map(() => []);
+  const order = sort_path_order.value;
 
-  for (let row = 0; row < paths.length; row++) {
-    for (let col = 0; col < paths[row].length; col++) {
-      if (grid[row]?.[col]?.isSpanned) continue;
+  // Build a map of key → path for quick lookup
+  const byKey = new Map<string, any[]>();
+  for (const p of paths) byKey.set(sortPathKey(p), p);
 
-      const level = paths[row][col];
-      if (!level) continue;
-
-      let span = 1;
-
-      for (let r = row + 1; r < paths.length; r++) {
-        let isMatch = true;
-        for (let c = 0; c <= col; c++)
-          if (
-            !paths[r]?.[c] ||
-            paths[r][c]?.selected?.name !== paths[row][c]?.selected?.name
-          ) {
-            isMatch = false;
-            break;
-          }
-        if (isMatch) span++;
-        else break;
-      }
-
-      grid[row][col] = {
-        level,
-        rowSpan: span,
-        colIdx: col,
-        rowIdx: row,
-      };
-
-      for (let r = row + 1; r < row + span; r++) {
-        if (!grid[r]) grid[r] = [];
-        grid[r][col] = { isSpanned: true };
-      }
+  // Collect ordered paths: first those in sort_path_order, then any new ones
+  const result: any[][] = [];
+  for (const key of order) {
+    const p = byKey.get(key);
+    if (p) {
+      result.push(p);
+      byKey.delete(key);
     }
   }
+  // Append any paths not yet in the order (newly added sorts)
+  for (const p of byKey.values()) result.push(p);
 
-  return grid;
+  return result;
 });
+
+// Keep sort_path_order in sync when paths are added or removed
+watch(activeSortPaths, (paths) => {
+  const currentKeys = new Set(paths.map(sortPathKey));
+  // Remove stale keys, then append any new ones
+  sort_path_order.value = sort_path_order.value.filter((k) =>
+    currentKeys.has(k)
+  );
+  for (const p of paths) {
+    const key = sortPathKey(p);
+    if (!sort_path_order.value.includes(key))
+      sort_path_order.value.push(key);
+  }
+});
+
+/** Begin dragging a sort row */
+function onSortDragStart(idx: number) {
+  drag_sort_idx.value = idx;
+}
+
+/**
+ * Handle dropping a sort row onto a new position.
+ * Splices the dragged entry out of sort_path_order and re-inserts it at the target index.
+ */
+function onSortDrop(idx: number) {
+  const from = drag_sort_idx.value;
+  if (from === null || from === idx) return;
+
+  const order = [...sort_path_order.value];
+  const [moved] = order.splice(from, 1);
+  order.splice(idx, 0, moved);
+  sort_path_order.value = order;
+
+  drag_sort_idx.value = null;
+  drag_over_sort_idx.value = null;
+  nextTick(() => get());
+}
 
 /** Swap a sort node to a different option (same pattern as changeNode for filters) */
 function changeSortNode(level: any, event: Event) {
@@ -692,7 +719,7 @@ function get() {
   // Same nesting logic as filters, but leaf values are "ASC"/"DESC" instead of user input
   // e.g. paths [brand → name → ASC, name → DESC] becomes { brand: { name: "ASC" }, name: "DESC" }
   let sortPayload: any = {};
-  activeSortPaths.value.forEach((path) => {
+  orderedSortPaths.value.forEach((path) => {
     let currentLevel = sortPayload;
     for (let i = 0; i < path.length; i++) {
       const node = path[i].selected;
@@ -972,76 +999,96 @@ function getEdges() {
               </div>
             </div>
 
-            <!-- Sort grid layout -->
+            <!-- Sort rows: each row is a self-contained draggable path -->
             <div
-              v-if="sortGrid.length"
+              v-if="orderedSortPaths.length"
               class="border-top pt-2 mt-2 overflow-x-auto"
             >
               <table>
                 <tbody>
                   <tr
-                    v-for="(rowCells, rIdx) in sortGrid"
+                    v-for="(path, rIdx) in orderedSortPaths"
                     :key="'sort-row-' + rIdx"
+                    draggable="true"
+                    @dragstart="onSortDragStart(rIdx)"
+                    @dragover.prevent="drag_over_sort_idx = rIdx"
+                    @dragleave="drag_over_sort_idx = null"
+                    @drop="onSortDrop(rIdx)"
+                    @dragend="
+                      drag_sort_idx = null;
+                      drag_over_sort_idx = null;
+                    "
+                    :style="{
+                      opacity: drag_sort_idx === rIdx ? 0.3 : 1,
+                    }"
+                    :class="{
+                      'sort-drop-target':
+                        drag_over_sort_idx === rIdx &&
+                        drag_sort_idx !== null &&
+                        drag_sort_idx !== rIdx,
+                    }"
+                    style="cursor: grab"
                   >
+                    <!-- Drag handle -->
+                    <td class="pe-0" style="height: 1px; width: 1px">
+                      <div
+                        class="d-flex align-items-center justify-content-center h-100 text-muted"
+                        style="min-height: 31px"
+                      >
+                        <i class="bi bi-grip-vertical"></i>
+                      </div>
+                    </td>
+                    <!-- Path segments -->
                     <template
-                      v-for="(cell, cIdx) in rowCells"
-                      :key="'sort-cell-' + cIdx"
+                      v-for="(level, cIdx) in path"
+                      :key="'sort-seg-' + cIdx"
                     >
-                      <template v-if="!cell.isSpanned">
-                        <td
-                          v-if="cIdx === 0"
-                          :rowspan="cell.rowSpan"
-                          style="height: 1px"
+                      <!-- Col 0: clickable label that expands the next sibling -->
+                      <td v-if="cIdx === 0" style="height: 1px">
+                        <button
+                          class="btn btn-outline-primary btn-sm text-capitalize w-100 rounded-start-pill px-3 h-100"
+                          style="min-height: 31px"
+                          @click="addNextSort(level)"
                         >
-                          <button
-                            class="btn btn-outline-primary btn-sm text-capitalize w-100 rounded-start-pill px-3 h-100"
-                            style="min-height: 31px"
-                            @click="addNextSort(cell.level)"
-                          >
-                            {{ camel(cell.level.selected.name) }}
-                          </button>
-                        </td>
-                        <td v-else :rowspan="cell.rowSpan" style="height: 1px">
-                          <select
-                            :value="cell.level.selected.name"
-                            @change="changeSortNode(cell.level, $event)"
-                            class="btn btn-outline-secondary btn-sm text-capitalize border-secondary text-center rounded-0 h-100 w-100"
-                            style="min-height: 31px"
-                          >
-                            <option
-                              v-for="opt in cell.level.options"
-                              :key="opt.name"
-                              :value="opt.name"
-                            >
-                              {{ camel(opt.name) }}
-                            </option>
-                          </select>
-                        </td>
-
-                        <!-- Sort direction: ASC / DESC -->
-                        <td
-                          v-if="cell.level.isLeaf"
-                          :rowspan="cell.rowSpan"
-                          style="height: 1px"
+                          {{ camel(level.selected.name) }}
+                        </button>
+                      </td>
+                      <!-- Col > 0: dropdown to swap between sibling options -->
+                      <td v-else style="height: 1px">
+                        <select
+                          :value="level.selected.name"
+                          @change="changeSortNode(level, $event)"
+                          class="btn btn-outline-secondary btn-sm text-capitalize border-secondary text-center rounded-0 h-100 w-100"
+                          style="min-height: 31px"
                         >
-                          <select
-                            v-model="cell.level.selected.value"
-                            class="btn btn-outline-secondary btn-sm border-secondary rounded-0 h-100 w-100"
-                            style="min-height: 31px"
-                            @change="get()"
+                          <option
+                            v-for="opt in level.options"
+                            :key="opt.name"
+                            :value="opt.name"
                           >
-                            <option value="ASC">ASC</option>
-                            <option value="DESC">DESC</option>
-                          </select>
-                        </td>
-                      </template>
+                            {{ camel(opt.name) }}
+                          </option>
+                        </select>
+                      </td>
+                      <!-- Sort direction: ASC / DESC (only on leaf nodes) -->
+                      <td v-if="level.isLeaf" style="height: 1px">
+                        <select
+                          v-model="level.selected.value"
+                          class="btn btn-outline-secondary btn-sm border-secondary rounded-0 h-100 w-100"
+                          style="min-height: 31px"
+                          @change="get()"
+                        >
+                          <option value="ASC">ASC</option>
+                          <option value="DESC">DESC</option>
+                        </select>
+                      </td>
                     </template>
                     <!-- Delete: removes this sort path -->
                     <td>
                       <button
                         class="btn btn-outline-danger btn-sm rounded-end-pill"
                         style="height: 100%; min-height: 31px"
-                        @click="deletePath(activeSortPaths[rIdx] || [])"
+                        @click="deletePath(path)"
                       >
                         <i class="bi bi-trash3"></i>
                       </button>
@@ -1133,3 +1180,10 @@ function getEdges() {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Highlight the drop target row with a top border during drag */
+.sort-drop-target td {
+  border-top: 2px solid var(--bs-primary) !important;
+}
+</style>

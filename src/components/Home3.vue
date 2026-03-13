@@ -199,9 +199,7 @@ const {
  */
 async function introspect(typeName: string, mode: "F" | "O") {
   const [r, l, g, store] =
-    mode === "F"
-      ? [f_r, f_l, f_get, filters]
-      : [s_r, s_l, s_get, sort_types];
+    mode === "F" ? [f_r, f_l, f_get, filters] : [s_r, s_l, s_get, sort_types];
 
   let data;
   if (r.value === undefined) data = await l(null, { name: typeName });
@@ -224,9 +222,7 @@ async function introspect(typeName: string, mode: "F" | "O") {
   });
 
   // Upsert into the flat store (avoid duplicates on re-fetch)
-  const existingIndex = store.value.findIndex(
-    (f: any) => f.name === inf.name
-  );
+  const existingIndex = store.value.findIndex((f: any) => f.name === inf.name);
   if (existingIndex !== -1) Object.assign(store.value[existingIndex], inf);
   else store.value.push(inf);
 
@@ -256,9 +252,7 @@ function enable(inputField: any, mode: "F" | "O") {
     // Sort leaf (ENUM direction) — default to ascending
     if (!inputField.value) inputField.value = "ASC";
   } else if (inputField.type?.name) {
-    const obj = store.value.find(
-      (f: any) => f.name === inputField.type.name
-    );
+    const obj = store.value.find((f: any) => f.name === inputField.type.name);
     if (obj) {
       obj.on = true;
       // Auto-expand the first child if nothing is selected yet
@@ -277,12 +271,16 @@ function camel(s: string) {
 function topLevel(mode: "F" | "O") {
   const [store, root] =
     mode === "F" ? [filters, tool_root] : [sort_types, sort_root];
-  return store.value.find((o: any) => o.name === root.value)?.inputFields || [];
+  return (
+    store.value.find((o: any) => o.name === root.value)?.inputFields || []
+  );
 }
 
 /** Filter the dropdown items by the search text, excluding already-active fields */
 function searchFieldsFn(mode: "F" | "O") {
-  const searchStr = (mode === "F" ? search_fields : search_sort_fields).value.toLowerCase();
+  const searchStr = (
+    mode === "F" ? search_fields : search_sort_fields
+  ).value.toLowerCase();
   return topLevel(mode).filter(
     (arg: any) => arg.name.toLowerCase().includes(searchStr) && !arg.on
   );
@@ -416,7 +414,7 @@ function changeNode(level: any, event: Event, mode: "F" | "O") {
   level.selected.on = false;
   const newOption = level.options.find((o: any) => o.name === newOptionName);
   if (newOption) enable(newOption, mode);
-  get(); // Always re-query: old node was deactivated
+  get(mode === "F"); // Only reset page for filter changes
 }
 
 /** Expand the next unused sibling field within a branch */
@@ -431,13 +429,13 @@ function addNext(level: any, mode: "F" | "O") {
 }
 
 /** Walk backwards along a path turning off nodes; stop when a sibling is still active */
-function deletePath(path: any[]) {
+function deletePath(path: any[], resetPage = true) {
   for (let i = path.length - 1; i >= 0; i--) {
     const level = path[i];
     level.selected.on = false;
     if (level.options.some((opt: any) => opt.on)) break;
   }
-  get();
+  get(resetPage);
 }
 
 // ================================================================
@@ -445,10 +443,6 @@ function deletePath(path: any[]) {
 //     Mirrors the filter UI but for orderBy. Leaf nodes are
 //     ENUM (ASC/DESC) instead of scalar input values.
 // ================================================================
-
-
-
-
 
 /** Generate a stable identity key for a sort path (e.g. "brand.name" or "category.name") */
 function sortPathKey(path: any[]) {
@@ -491,8 +485,7 @@ watch(activeSortPaths, (paths) => {
   );
   for (const p of paths) {
     const key = sortPathKey(p);
-    if (!sort_path_order.value.includes(key))
-      sort_path_order.value.push(key);
+    if (!sort_path_order.value.includes(key)) sort_path_order.value.push(key);
   }
 });
 
@@ -516,10 +509,8 @@ function onSortDrop(idx: number) {
 
   drag_sort_idx.value = null;
   drag_over_sort_idx.value = null;
-  get();
+  get(false);
 }
-
-
 
 // ================================================================
 // 3. MAIN LIVE DATA QUERY
@@ -672,7 +663,9 @@ const totalPages = computed(() => {
 });
 
 /** Zero-based offset for the current page */
-const paginationOffset = computed(() => (current_page.value - 1) * page_size.value);
+const paginationOffset = computed(
+  () => (current_page.value - 1) * page_size.value
+);
 
 /**
  * Navigate to a specific page and refetch.
@@ -926,7 +919,10 @@ function changePageSize(val: number) {
                   <li v-for="f in searchFieldsFn('O')" :key="f.name">
                     <button
                       class="dropdown-item text-capitalize"
-                      @click="enable(f, 'O'); get()"
+                      @click="
+                        enable(f, 'O');
+                        get(false);
+                      "
                     >
                       {{ camel(f.name) }}
                     </button>
@@ -984,7 +980,10 @@ function changePageSize(val: number) {
                         <button
                           class="btn btn-outline-primary btn-sm text-capitalize w-100 rounded-start-pill px-3 h-100"
                           style="min-height: 31px"
-                          @click="addNext(level, 'O'); get()"
+                          @click="
+                            addNext(level, 'O');
+                            get(false);
+                          "
                         >
                           {{ camel(level.selected.name) }}
                         </button>
@@ -1012,7 +1011,7 @@ function changePageSize(val: number) {
                           v-model="level.selected.value"
                           class="btn btn-outline-secondary btn-sm border-secondary rounded-0 h-100 w-100"
                           style="min-height: 31px"
-                          @change="get()"
+                          @change="get(false)"
                         >
                           <option value="ASC">ASC</option>
                           <option value="DESC">DESC</option>
@@ -1024,7 +1023,7 @@ function changePageSize(val: number) {
                       <button
                         class="btn btn-outline-danger btn-sm rounded-end-pill"
                         style="height: 100%; min-height: 31px"
-                        @click="deletePath(path)"
+                        @click="deletePath(path, false)"
                       >
                         <i class="bi bi-trash3"></i>
                       </button>
@@ -1087,11 +1086,11 @@ function changePageSize(val: number) {
                 <td>{{ h.node.brand?.name }}</td>
                 <td>{{ h.node.category?.name }}</td>
                 <td>
-                  <div
-                    v-for="(m, i) in h.node.toolMetrics?.edges"
-                    :key="i"
-                  >
-                    {{ m.node.metric?.name }}: {{ m.node.value }}<span v-if="i < h.node.toolMetrics.edges.length - 1">, </span>
+                  <div v-for="(m, i) in h.node.toolMetrics?.edges" :key="i">
+                    {{ m.node.metric?.name }}: {{ m.node.value }}
+                    <span v-if="i < h.node.toolMetrics.edges.length - 1">
+                      ,
+                    </span>
                   </div>
                 </td>
               </tr>
@@ -1122,9 +1121,7 @@ function changePageSize(val: number) {
             :key="p"
             class="btn btn-sm"
             :class="
-              p === current_page
-                ? 'btn-primary'
-                : 'btn-outline-secondary'
+              p === current_page ? 'btn-primary' : 'btn-outline-secondary'
             "
             style="min-width: 2.2rem"
             @click="goToPage(p)"
@@ -1142,7 +1139,9 @@ function changePageSize(val: number) {
             style="width: 5rem"
             :value="page_size"
             min="1"
-            @change="changePageSize(+($event.target as HTMLInputElement).value)"
+            @change="
+              changePageSize(+($event.target as HTMLInputElement).value)
+            "
           />
         </div>
       </div>

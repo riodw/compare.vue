@@ -655,10 +655,17 @@ const q = {
       __args: {} as any,
       edges: {
         node: {
-          id: true,
-          // value: true,
           name: true,
           brand: { name: true },
+          category: { name: true },
+          toolMetrics: {
+            edges: {
+              node: {
+                value: true,
+                metric: { name: true },
+              },
+            },
+          },
         },
       },
       count: true,
@@ -1184,37 +1191,24 @@ function changePageSize(val: number) {
           <table class="table table-hover m-0">
             <thead>
               <tr class="table-secondary">
-                <th>&nbsp;</th>
                 <th>Name</th>
-                <th>Price</th>
-                <th class="text-end"></th>
+                <th>Brand</th>
+                <th>Category</th>
+                <th>Metrics</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="h in getEdges()?.edges" :key="h.node.id">
-                <td class="text-end ps-0">
-                  <div
-                    class="text-center overflow-hidden rounded-4 bg-warning text-uppercase ms-auto"
-                    style="width: 3rem; height: 3rem; line-height: 3rem"
-                  >
-                    --
-                  </div>
-                </td>
+              <tr v-for="h in getEdges()?.edges" :key="h.node.name">
+                <td>{{ h.node.name }}</td>
+                <td>{{ h.node.brand?.name }}</td>
+                <td>{{ h.node.category?.name }}</td>
                 <td>
-                  <b>{{ h.node.name }}</b>
-                </td>
-                <td class="d-none d-sm-table-cell">
-                  <i>{{ h.node.brand?.name || "No Brand" }}</i>
-                </td>
-                <td class="text-end d-none d-md-table-cell">
-                  <button class="btn btn-secondary btn-sm">
-                    <i class="bi bi-pencil-fill"></i>
-                    &nbsp;Edit
-                  </button>
-                  <button class="btn btn-danger btn-sm ms-1">
-                    <i class="bi bi-trash3-fill"></i>
-                    &nbsp;Remove
-                  </button>
+                  <div
+                    v-for="(m, i) in h.node.toolMetrics?.edges"
+                    :key="i"
+                  >
+                    {{ m.node.metric?.name }}: {{ m.node.value }}<span v-if="i < h.node.toolMetrics.edges.length - 1">, </span>
+                  </div>
                 </td>
               </tr>
             </tbody>

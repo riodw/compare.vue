@@ -124,7 +124,7 @@ watch(q_r, (value) => {
   const filterArg = f.find((o: any) => o.name === "filter");
   if (filterArg?.type?.name) {
     tool_root.value = filterArg.type.name;
-    getFilters(filterArg.type.name);
+    introspect(filterArg.type.name, "F");
   }
 
   // Kick off recursive introspection of the orderBy INPUT_OBJECT tree.
@@ -148,13 +148,13 @@ watch(q_r, (value) => {
     if (innerName) {
       sort_root.value = innerName;
       sort_var_type.value = varType;
-      getSortTypes(innerName);
+      introspect(innerName, "O");
     }
   }
 });
 
 // Reusable introspection query — fetches inputFields for any named INPUT_OBJECT type.
-// Used by both getFilters() and getSortTypes() via separate lazy query instances.
+// Used by introspect() via separate lazy query instances for filters and sorts.
 const input_query = {
   query: {
     __variables: { name: "String!" },
@@ -193,13 +193,19 @@ const {
 } = useLazyQuery(gql(jtg(input_query)));
 
 /**
- * Walk the filter type graph depth-first, storing each INPUT_OBJECT in `filters`.
- * Each type gets `on`/`value` UI state. Recurses into nested INPUT_OBJECT children.
+ * Walk an INPUT_OBJECT type graph depth-first, storing each type in `store`.
+ * Each type and its inputFields get `on`/`value` UI state.
+ * "F" = filter introspection, "O" = order introspection.
  */
-async function getFilters(typeName: string) {
+async function introspect(typeName: string, mode: "F" | "O") {
+  const [r, l, g, store] =
+    mode === "F"
+      ? [f_r, f_l, f_get, filters]
+      : [s_r, s_l, s_get, sort_types];
+
   let data;
-  if (f_r.value === undefined) data = await f_l(null, { name: typeName });
-  else data = (await f_get({ name: typeName }))?.data;
+  if (r.value === undefined) data = await l(null, { name: typeName });
+  else data = (await g({ name: typeName }))?.data;
 
   if (!data?.__type?.inputFields) return;
 
@@ -217,50 +223,16 @@ async function getFilters(typeName: string) {
     o.value = "";
   });
 
-  // Upsert into the flat filters list (avoid duplicates on re-fetch)
-  const existingIndex = filters.value.findIndex(
+  // Upsert into the flat store (avoid duplicates on re-fetch)
+  const existingIndex = store.value.findIndex(
     (f: any) => f.name === inf.name
   );
-  if (existingIndex !== -1) Object.assign(filters.value[existingIndex], inf);
-  else filters.value.push(inf);
+  if (existingIndex !== -1) Object.assign(store.value[existingIndex], inf);
+  else store.value.push(inf);
 
   // Recurse into any nested INPUT_OBJECT children
   for (const o of inf.inputFields)
-    if (o.type.kind === "INPUT_OBJECT") await getFilters(o.type.name);
-}
-
-/**
- * Same as getFilters but for sort types — walks the orderBy INPUT_OBJECT tree.
- * Stores each discovered type in `sort_types` with `on`/`value` UI state.
- */
-async function getSortTypes(typeName: string) {
-  let data;
-  if (s_r.value === undefined) data = await s_l(null, { name: typeName });
-  else data = (await s_get({ name: typeName }))?.data;
-
-  if (!data?.__type?.inputFields) return;
-
-  let inf = stripTypename(data.__type);
-  inf.inputFields = inf.inputFields.filter(
-    (o: any) => !NON_MODEL_ARGS.includes(o.name)
-  );
-
-  inf.on = false;
-  inf.value = "";
-  inf.inputFields.map((o: any) => {
-    o.on = false;
-    o.value = "";
-  });
-
-  const existingIndex = sort_types.value.findIndex(
-    (f: any) => f.name === inf.name
-  );
-  if (existingIndex !== -1)
-    Object.assign(sort_types.value[existingIndex], inf);
-  else sort_types.value.push(inf);
-
-  for (const o of inf.inputFields)
-    if (o.type.kind === "INPUT_OBJECT") await getSortTypes(o.type.name);
+    if (o.type.kind === "INPUT_OBJECT") await introspect(o.type.name, mode);
 }
 
 // ================================================================
@@ -271,25 +243,30 @@ async function getSortTypes(typeName: string) {
 // ================================================================
 
 /**
- * Toggle a filter field on and cascade-open the first child at each level.
+ * Toggle a field on and cascade-open the first child at each level.
+ * "F" = filter mode (recurses into any named type).
+ * "O" = order mode (only recurses into INPUT_OBJECT; leaf defaults to "ASC").
  * Triggers a query rebuild after activation.
  */
-function enableFilter(inputField: any) {
+function enable(inputField: any, mode: "F" | "O") {
   inputField.on = true;
+  const store = mode === "F" ? filters : sort_types;
 
-  if (inputField.type?.name) {
-    const filterObj = filters.value.find(
+  if (mode === "O" && inputField.type?.kind !== "INPUT_OBJECT") {
+    // Sort leaf (ENUM direction) — default to ascending
+    if (!inputField.value) inputField.value = "ASC";
+  } else if (inputField.type?.name) {
+    const obj = store.value.find(
       (f: any) => f.name === inputField.type.name
     );
-    if (filterObj) {
-      filterObj.on = true;
+    if (obj) {
+      obj.on = true;
       // Auto-expand the first child if nothing is selected yet
-      if (filterObj.inputFields?.length > 0 && !filterObj.inputFields[0].on)
-        enableFilter(filterObj.inputFields[0]);
+      if (obj.inputFields?.length > 0 && !obj.inputFields[0].on)
+        enable(obj.inputFields[0], mode);
     }
   }
 
-  // Rebuild the GraphQL query with the new filter state
   get();
 }
 
@@ -298,18 +275,17 @@ function camel(s: string) {
   return s.replace(/([A-Z])/g, " $1").trim();
 }
 
-/** Get the root-level filter inputFields (the top-level options in the "Add Filter" dropdown) */
-function topLevelFilters() {
-  return (
-    filters.value.find((o: any) => o.name === tool_root.value)?.inputFields ||
-    []
-  );
+/** Get the root-level inputFields for a given mode's "Add" dropdown */
+function topLevel(mode: "F" | "O") {
+  const [store, root] =
+    mode === "F" ? [filters, tool_root] : [sort_types, sort_root];
+  return store.value.find((o: any) => o.name === root.value)?.inputFields || [];
 }
 
 /** Filter the dropdown items by the search text, excluding already-active fields */
 function searchFields() {
   const searchStr = search_fields.value.toLowerCase();
-  return topLevelFilters().filter(
+  return topLevel('F').filter(
     (arg: any) => arg.name.toLowerCase().includes(searchStr) && !arg.on
   );
 }
@@ -431,7 +407,7 @@ function changeNode(level: any, event: Event) {
   // Deactivate old branch, activate new one
   level.selected.on = false;
   const newOption = level.options.find((o: any) => o.name === newOptionName);
-  if (newOption) enableFilter(newOption);
+  if (newOption) enable(newOption, "F");
 }
 
 /** Expand the next unused sibling field within a filter branch */
@@ -441,7 +417,7 @@ function addNextFilter(level: any) {
     (f: any) => f.name === level.selected.type.name
   );
   const nextField = filterObj?.inputFields?.find((f: any) => !f.on);
-  if (nextField) enableFilter(nextField);
+  if (nextField) enable(nextField, "F");
 }
 
 /** Walk backwards along a path turning off nodes; stop when a sibling is still active */
@@ -460,44 +436,15 @@ function deletePath(path: any[]) {
 //     ENUM (ASC/DESC) instead of scalar input values.
 // ================================================================
 
-/** Get the root-level sort inputFields for the "Add Sort" dropdown */
-function topLevelSorts() {
-  return (
-    sort_types.value.find((o: any) => o.name === sort_root.value)
-      ?.inputFields || []
-  );
-}
 
 /** Filter sort dropdown items by search text, excluding already-active fields */
 function searchSortFieldsFn() {
   const searchStr = search_sort_fields.value.toLowerCase();
-  return topLevelSorts().filter(
+  return topLevel('O').filter(
     (arg: any) => arg.name.toLowerCase().includes(searchStr) && !arg.on
   );
 }
 
-/**
- * Toggle a sort field on and cascade-open children.
- * Leaf nodes (ENUM direction) default to "ASC". Triggers a query rebuild.
- */
-function enableSort(inputField: any) {
-  inputField.on = true;
-
-  if (inputField.type?.kind === "INPUT_OBJECT" && inputField.type?.name) {
-    const sortObj = sort_types.value.find(
-      (f: any) => f.name === inputField.type.name
-    );
-    if (sortObj) {
-      sortObj.on = true;
-      if (sortObj.inputFields?.length > 0 && !sortObj.inputFields[0].on)
-        enableSort(sortObj.inputFields[0]);
-    }
-  } else if (!inputField.value)
-    // Leaf node (ENUM direction) — default to ascending
-    inputField.value = "ASC";
-
-  get();
-}
 
 /**
  * Collect active sort branches as linear paths (same traversal pattern as filters).
@@ -627,7 +574,7 @@ function changeSortNode(level: any, event: Event) {
 
   level.selected.on = false;
   const newOption = level.options.find((o: any) => o.name === newOptionName);
-  if (newOption) enableSort(newOption);
+  if (newOption) enable(newOption, "O");
 }
 
 /** Expand the next unused sibling field within a sort branch */
@@ -637,7 +584,7 @@ function addNextSort(level: any) {
     (f: any) => f.name === level.selected.type.name
   );
   const nextField = sortObj?.inputFields?.find((f: any) => !f.on);
-  if (nextField) enableSort(nextField);
+  if (nextField) enable(nextField, "O");
 }
 
 // ================================================================
@@ -888,13 +835,13 @@ function changePageSize(val: number) {
                       v-model="search_fields"
                       class="form-control py-1"
                       type="text"
-                      :placeholder="topLevelFilters().length + ' Filters...'"
+                      :placeholder="topLevel('F').length + ' Filters...'"
                     />
                   </li>
                   <li v-for="f in searchFields()" :key="f.name">
                     <button
                       class="dropdown-item text-capitalize"
-                      @click="enableFilter(f)"
+                      @click="enable(f, 'F')"
                     >
                       {{ camel(f.name) }}
                     </button>
@@ -1036,13 +983,13 @@ function changePageSize(val: number) {
                       v-model="search_sort_fields"
                       class="form-control py-1"
                       type="text"
-                      :placeholder="topLevelSorts().length + ' Sorts...'"
+                      :placeholder="topLevel('O').length + ' Sorts...'"
                     />
                   </li>
                   <li v-for="f in searchSortFieldsFn()" :key="f.name">
                     <button
                       class="dropdown-item text-capitalize"
-                      @click="enableSort(f)"
+                      @click="enable(f, 'O')"
                     >
                       {{ camel(f.name) }}
                     </button>

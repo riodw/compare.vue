@@ -246,7 +246,7 @@ async function introspect(typeName: string, mode: "F" | "O") {
  * Toggle a field on and cascade-open the first child at each level.
  * "F" = filter mode (recurses into any named type).
  * "O" = order mode (only recurses into INPUT_OBJECT; leaf defaults to "ASC").
- * Triggers a query rebuild after activation.
+ * Does NOT call get() — callers decide when to re-query.
  */
 function enable(inputField: any, mode: "F" | "O") {
   inputField.on = true;
@@ -266,8 +266,6 @@ function enable(inputField: any, mode: "F" | "O") {
         enable(obj.inputFields[0], mode);
     }
   }
-
-  get();
 }
 
 /** Convert camelCase to spaced words for display: "brandName" → "brand Name" */
@@ -418,6 +416,7 @@ function changeNode(level: any, event: Event, mode: "F" | "O") {
   level.selected.on = false;
   const newOption = level.options.find((o: any) => o.name === newOptionName);
   if (newOption) enable(newOption, mode);
+  get(); // Always re-query: old node was deactivated
 }
 
 /** Expand the next unused sibling field within a branch */
@@ -924,7 +923,7 @@ function changePageSize(val: number) {
                   <li v-for="f in searchFieldsFn('O')" :key="f.name">
                     <button
                       class="dropdown-item text-capitalize"
-                      @click="enable(f, 'O')"
+                      @click="enable(f, 'O'); get()"
                     >
                       {{ camel(f.name) }}
                     </button>
@@ -982,7 +981,7 @@ function changePageSize(val: number) {
                         <button
                           class="btn btn-outline-primary btn-sm text-capitalize w-100 rounded-start-pill px-3 h-100"
                           style="min-height: 31px"
-                          @click="addNext(level, 'O')"
+                          @click="addNext(level, 'O'); get()"
                         >
                           {{ camel(level.selected.name) }}
                         </button>

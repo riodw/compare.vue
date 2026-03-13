@@ -516,7 +516,7 @@ function onSortDrop(idx: number) {
 
   drag_sort_idx.value = null;
   drag_over_sort_idx.value = null;
-  nextTick(() => get());
+  get();
 }
 
 
@@ -608,11 +608,13 @@ function get(resetPage = true) {
   }
 
   // --- Build sort payload ---
-  // Same nesting logic as filters, but leaf values are "ASC"/"DESC" instead of user input
-  // e.g. paths [brand → name → ASC, name → DESC] becomes { brand: { name: "ASC" }, name: "DESC" }
-  let sortPayload: any = {};
+  // Each sort path becomes its own object in the orderBy array so that
+  // array position (not JS object key order) determines sort priority.
+  // e.g. paths [name → ASC, brand → name → DESC] becomes [{ name: "ASC" }, { brand: { name: "DESC" } }]
+  let sortPayloads: any[] = [];
   orderedSortPaths.value.forEach((path) => {
-    let currentLevel = sortPayload;
+    let sortObj: any = {};
+    let currentLevel = sortObj;
     for (let i = 0; i < path.length; i++) {
       const node = path[i].selected;
       if (i === path.length - 1) {
@@ -623,15 +625,16 @@ function get(resetPage = true) {
         currentLevel = currentLevel[node.name];
       }
     }
+    if (Object.keys(sortObj).length > 0) sortPayloads.push(sortObj);
   });
 
-  // Attach orderBy variable. Wrap in array if the schema type is a LIST.
-  if (Object.keys(sortPayload).length > 0 && sort_var_type.value !== "") {
+  // Attach orderBy variable
+  if (sortPayloads.length > 0 && sort_var_type.value !== "") {
     q.query.__variables["orderBy"] = sort_var_type.value;
     q.query[ROOT].__args["orderBy"] = new VariableType("orderBy");
     newVariables["orderBy"] = sort_var_type.value.startsWith("[")
-      ? [sortPayload]
-      : sortPayload;
+      ? sortPayloads
+      : sortPayloads[0];
   }
 
   // --- Attach pagination variables ---

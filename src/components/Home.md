@@ -6,9 +6,9 @@ This document details the complete execution chain for the dynamic GraphQL query
 
 ## Constants
 
-| Name | Purpose |
-|------|---------|
-| `ROOT` | The GraphQL root query field name (e.g. `"tools"`). Every query, introspection lookup, and data accessor is built around this single constant. |
+| Name             | Purpose                                                                                                                                                     |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ROOT`           | The GraphQL root query field name (e.g. `"tools"`). Every query, introspection lookup, and data accessor is built around this single constant.              |
 | `NON_MODEL_ARGS` | Envelope args (`filter`, `orderBy`, `first`, `offset`, `and`, `or`, `not`, etc.) that are stripped from model field lists so only real model fields remain. |
 
 ---
@@ -38,6 +38,7 @@ Finds the arg named `"filter"`. Its `type.name` (e.g. `"ToolFilter"`) becomes `t
 #### c) Discover the orderBy type → kick off `introspect(typeName, "O")`
 
 Finds the arg named `"orderBy"`. Because orderBy is typically wrapped in `LIST` and/or `NON_NULL`, the inline `unwrapType()` helper recursively peels off wrappers to recover:
+
 - `innerName` — the actual INPUT_OBJECT name (e.g. `"ToolOrder"`) → stored in `sort_root`
 - `varType` — the full GraphQL variable type string (e.g. `"[ToolOrder!]"`) → stored in `sort_var_type`
 
@@ -86,14 +87,17 @@ The central function. Called by every user interaction that should refresh data.
 2. **Clear query args** — empties `q.query.__variables` and `q.query[ROOT].__args`.
 
 3. **Build filter payload** — walks `activeFilterPaths` and nests each path into a deeply nested object:
+
    ```
    [brand → name → icontains:"dewalt"] → { brand: { name: { icontains: "dewalt" } } }
    ```
+
    Skips leaf nodes with empty values (no point querying `contains: ""`).
 
 4. **Attach filter variable** — if the payload is non-empty, declares `$filter` in `__variables` and sets `filter:` in `__args`.
 
 5. **Build sort payload** — walks `orderedSortPaths` (the user-ordered version). Each sort path becomes its **own object** in an array, so array position (not JS object key order) determines sort priority:
+
    ```
    [name → ASC, brand → name → DESC] → [{ name: "ASC" }, { brand: { name: "DESC" } }]
    ```
@@ -125,6 +129,7 @@ Converts camelCase to spaced words: `"brandName"` → `"brand Name"`. Used on al
 ### 3.2 `topLevel(mode)` — root-level dropdown options
 
 Returns the `inputFields` array from the root type of the given mode:
+
 - `"F"` → looks up `tool_root` in `filters`
 - `"O"` → looks up `sort_root` in `sort_types`
 
@@ -146,16 +151,19 @@ Turns a field `on` and recursively opens the first child at each level until a l
 ### 3.5 `activePaths(mode)` — compute active branch paths
 
 Walks the type tree and collects every active branch as a linear array of level nodes. Each level node contains:
+
 - `selected` — the active field at this depth (has `on`, `value`, `type`)
 - `options` — all sibling fields at this depth (for the swap dropdown)
 - `isLeaf` — whether this is the terminal node
 - `fieldType` — the GraphQL type name (for choosing input widget)
 
 Leaf detection differs by mode:
+
 - **Filter**: leaf = `SCALAR` kind or known primitive name (`String`, `Boolean`, `Int`, `Float`, `Decimal`, `ID`)
 - **Order**: leaf = anything that isn't `INPUT_OBJECT` (catches ENUM sort directions)
 
 Used by two computeds:
+
 - `activeFilterPaths = computed(() => activePaths("F"))`
 - `activeSortPaths = computed(() => activePaths("O"))`
 
@@ -166,6 +174,7 @@ Transforms the flat `activeFilterPaths` into a 2D grid where shared ancestor nod
 ### 3.7 `changeNode(level, event, mode)` — swap a selected field
 
 When the user changes a `<select>` dropdown at a given depth:
+
 1. Turns the old field `off`
 2. Finds the new field by name
 3. Calls `enable()` on it (cascading children)
@@ -194,6 +203,7 @@ Takes `activeSortPaths` and reorders them according to `sort_path_order` (an arr
 ### 4.3 `watch(activeSortPaths, ...)` — keep ordering in sync
 
 Whenever sort paths change (added/removed), syncs `sort_path_order`:
+
 - Removes keys for paths that no longer exist
 - Appends keys for newly added paths
 

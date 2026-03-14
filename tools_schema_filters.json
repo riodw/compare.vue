@@ -1,2240 +1,2240 @@
 [
-    {
-        "name": "ToolNodeToolFilterFilterInputType",
-        "kind": "INPUT_OBJECT",
-        "inputFields": [
-            {
-                "name": "brand",
-                "type": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "ToolNodeToolFilterBrandFilterInputType",
-                    "ofType": null
-                },
-                "on": true,
-                "value": ""
-            },
-            {
-                "name": "category",
-                "type": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "ToolNodeToolFilterCategoryFilterInputType",
-                    "ofType": null
-                },
-                "on": true,
-                "value": ""
-            },
-            {
-                "name": "name",
-                "type": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "ToolNodeToolFilterNameFilterInputType",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "modelNumber",
-                "type": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "ToolNodeToolFilterModelNumberFilterInputType",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "description",
-                "type": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "ToolNodeToolFilterDescriptionFilterInputType",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "weight",
-                "type": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "ToolNodeToolFilterWeightFilterInputType",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "price",
-                "type": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "ToolNodeToolFilterPriceFilterInputType",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "noiseLevel",
-                "type": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "ToolNodeToolFilterNoiseLevelFilterInputType",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            }
-        ],
+  {
+    "name": "ToolNodeToolFilterFilterInputType",
+    "kind": "INPUT_OBJECT",
+    "inputFields": [
+      {
+        "name": "brand",
+        "type": {
+          "kind": "INPUT_OBJECT",
+          "name": "ToolNodeToolFilterBrandFilterInputType",
+          "ofType": null
+        },
+        "on": true,
+        "value": ""
+      },
+      {
+        "name": "category",
+        "type": {
+          "kind": "INPUT_OBJECT",
+          "name": "ToolNodeToolFilterCategoryFilterInputType",
+          "ofType": null
+        },
+        "on": true,
+        "value": ""
+      },
+      {
+        "name": "name",
+        "type": {
+          "kind": "INPUT_OBJECT",
+          "name": "ToolNodeToolFilterNameFilterInputType",
+          "ofType": null
+        },
         "on": false,
         "value": ""
-    },
-    {
-        "name": "ToolNodeToolFilterBrandFilterInputType",
-        "kind": "INPUT_OBJECT",
-        "inputFields": [
-            {
-                "name": "name",
-                "type": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "ToolNodeToolFilterBrandNameFilterInputType",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "link",
-                "type": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "ToolNodeToolFilterBrandLinkFilterInputType",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "yearFounded",
-                "type": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "ToolNodeToolFilterBrandYearFoundedFilterInputType",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "exact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "ID",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            }
-        ],
+      },
+      {
+        "name": "modelNumber",
+        "type": {
+          "kind": "INPUT_OBJECT",
+          "name": "ToolNodeToolFilterModelNumberFilterInputType",
+          "ofType": null
+        },
         "on": false,
         "value": ""
-    },
-    {
-        "name": "ToolNodeToolFilterBrandNameFilterInputType",
-        "kind": "INPUT_OBJECT",
-        "inputFields": [
-            {
-                "name": "exact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iexact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "in",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "String"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "contains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "icontains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "startswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "istartswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "endswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iendswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "range",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "String"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "isnull",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Boolean",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "regex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iregex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            }
-        ],
+      },
+      {
+        "name": "description",
+        "type": {
+          "kind": "INPUT_OBJECT",
+          "name": "ToolNodeToolFilterDescriptionFilterInputType",
+          "ofType": null
+        },
         "on": false,
         "value": ""
-    },
-    {
-        "name": "ToolNodeToolFilterBrandLinkFilterInputType",
-        "kind": "INPUT_OBJECT",
-        "inputFields": [
-            {
-                "name": "exact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iexact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "in",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "String"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "contains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "icontains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "startswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "istartswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "endswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iendswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "range",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "String"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "isnull",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Boolean",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "regex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iregex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            }
-        ],
+      },
+      {
+        "name": "weight",
+        "type": {
+          "kind": "INPUT_OBJECT",
+          "name": "ToolNodeToolFilterWeightFilterInputType",
+          "ofType": null
+        },
         "on": false,
         "value": ""
-    },
-    {
-        "name": "ToolNodeToolFilterBrandYearFoundedFilterInputType",
-        "kind": "INPUT_OBJECT",
-        "inputFields": [
-            {
-                "name": "exact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iexact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "in",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "Int"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "contains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "icontains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "startswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "istartswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "endswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iendswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "range",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "Int"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "isnull",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Boolean",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "regex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iregex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "containedBy",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            }
-        ],
+      },
+      {
+        "name": "price",
+        "type": {
+          "kind": "INPUT_OBJECT",
+          "name": "ToolNodeToolFilterPriceFilterInputType",
+          "ofType": null
+        },
         "on": false,
         "value": ""
-    },
-    {
-        "name": "ToolNodeToolFilterCategoryFilterInputType",
-        "kind": "INPUT_OBJECT",
-        "inputFields": [
-            {
-                "name": "name",
-                "type": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "ToolNodeToolFilterCategoryNameFilterInputType",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "description",
-                "type": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "ToolNodeToolFilterCategoryDescriptionFilterInputType",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "exact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "ID",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            }
-        ],
+      },
+      {
+        "name": "noiseLevel",
+        "type": {
+          "kind": "INPUT_OBJECT",
+          "name": "ToolNodeToolFilterNoiseLevelFilterInputType",
+          "ofType": null
+        },
         "on": false,
         "value": ""
-    },
-    {
-        "name": "ToolNodeToolFilterCategoryNameFilterInputType",
-        "kind": "INPUT_OBJECT",
-        "inputFields": [
-            {
-                "name": "exact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iexact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "in",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "String"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "contains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "icontains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "startswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "istartswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "endswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iendswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "range",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "String"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "isnull",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Boolean",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "regex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iregex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            }
-        ],
+      }
+    ],
+    "on": false,
+    "value": ""
+  },
+  {
+    "name": "ToolNodeToolFilterBrandFilterInputType",
+    "kind": "INPUT_OBJECT",
+    "inputFields": [
+      {
+        "name": "name",
+        "type": {
+          "kind": "INPUT_OBJECT",
+          "name": "ToolNodeToolFilterBrandNameFilterInputType",
+          "ofType": null
+        },
         "on": false,
         "value": ""
-    },
-    {
-        "name": "ToolNodeToolFilterCategoryDescriptionFilterInputType",
-        "kind": "INPUT_OBJECT",
-        "inputFields": [
-            {
-                "name": "exact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iexact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "in",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "String"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "contains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "icontains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "startswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "istartswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "endswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iendswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "range",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "String"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "isnull",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Boolean",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "regex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iregex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            }
-        ],
+      },
+      {
+        "name": "link",
+        "type": {
+          "kind": "INPUT_OBJECT",
+          "name": "ToolNodeToolFilterBrandLinkFilterInputType",
+          "ofType": null
+        },
         "on": false,
         "value": ""
-    },
-    {
-        "name": "ToolNodeToolFilterNameFilterInputType",
-        "kind": "INPUT_OBJECT",
-        "inputFields": [
-            {
-                "name": "exact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iexact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "in",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "String"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "contains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "icontains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "startswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "istartswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "endswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iendswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "range",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "String"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "isnull",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Boolean",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "regex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iregex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            }
-        ],
+      },
+      {
+        "name": "yearFounded",
+        "type": {
+          "kind": "INPUT_OBJECT",
+          "name": "ToolNodeToolFilterBrandYearFoundedFilterInputType",
+          "ofType": null
+        },
         "on": false,
         "value": ""
-    },
-    {
-        "name": "ToolNodeToolFilterModelNumberFilterInputType",
-        "kind": "INPUT_OBJECT",
-        "inputFields": [
-            {
-                "name": "exact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iexact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "in",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "String"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "contains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "icontains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "startswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "istartswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "endswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iendswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "range",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "String"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "isnull",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Boolean",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "regex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iregex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            }
-        ],
+      },
+      {
+        "name": "exact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "ID",
+          "ofType": null
+        },
         "on": false,
         "value": ""
-    },
-    {
-        "name": "ToolNodeToolFilterDescriptionFilterInputType",
-        "kind": "INPUT_OBJECT",
-        "inputFields": [
-            {
-                "name": "exact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iexact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "in",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "String"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "contains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "icontains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "startswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "istartswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "endswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iendswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "range",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "String"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "isnull",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Boolean",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "regex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iregex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            }
-        ],
+      }
+    ],
+    "on": false,
+    "value": ""
+  },
+  {
+    "name": "ToolNodeToolFilterBrandNameFilterInputType",
+    "kind": "INPUT_OBJECT",
+    "inputFields": [
+      {
+        "name": "exact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
         "on": false,
         "value": ""
-    },
-    {
-        "name": "ToolNodeToolFilterWeightFilterInputType",
-        "kind": "INPUT_OBJECT",
-        "inputFields": [
-            {
-                "name": "exact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iexact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "in",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "Decimal"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "contains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "icontains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "startswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "istartswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "endswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iendswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "range",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "Decimal"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "isnull",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Boolean",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "regex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iregex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "containedBy",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            }
-        ],
+      },
+      {
+        "name": "iexact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
         "on": false,
         "value": ""
-    },
-    {
-        "name": "ToolNodeToolFilterPriceFilterInputType",
-        "kind": "INPUT_OBJECT",
-        "inputFields": [
-            {
-                "name": "exact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iexact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "in",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "Decimal"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "contains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "icontains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "startswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "istartswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "endswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iendswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "range",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "Decimal"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "isnull",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Boolean",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "regex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iregex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "containedBy",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            }
-        ],
+      },
+      {
+        "name": "gt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
         "on": false,
         "value": ""
-    },
-    {
-        "name": "ToolNodeToolFilterNoiseLevelFilterInputType",
-        "kind": "INPUT_OBJECT",
-        "inputFields": [
-            {
-                "name": "exact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iexact",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "gte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lt",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "lte",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "in",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "Decimal"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "contains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "icontains",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "startswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "istartswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "endswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iendswith",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "range",
-                "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                        "kind": "SCALAR",
-                        "name": "Decimal"
-                    }
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "isnull",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Boolean",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "regex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "iregex",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            },
-            {
-                "name": "containedBy",
-                "type": {
-                    "kind": "SCALAR",
-                    "name": "Decimal",
-                    "ofType": null
-                },
-                "on": false,
-                "value": ""
-            }
-        ],
+      },
+      {
+        "name": "gte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
         "on": false,
         "value": ""
-    }
+      },
+      {
+        "name": "lt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "lte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "in",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "String"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "contains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "icontains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "startswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "istartswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "endswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iendswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "range",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "String"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "isnull",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Boolean",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "regex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iregex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      }
+    ],
+    "on": false,
+    "value": ""
+  },
+  {
+    "name": "ToolNodeToolFilterBrandLinkFilterInputType",
+    "kind": "INPUT_OBJECT",
+    "inputFields": [
+      {
+        "name": "exact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iexact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "gt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "gte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "lt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "lte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "in",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "String"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "contains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "icontains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "startswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "istartswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "endswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iendswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "range",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "String"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "isnull",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Boolean",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "regex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iregex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      }
+    ],
+    "on": false,
+    "value": ""
+  },
+  {
+    "name": "ToolNodeToolFilterBrandYearFoundedFilterInputType",
+    "kind": "INPUT_OBJECT",
+    "inputFields": [
+      {
+        "name": "exact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iexact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "gt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "gte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "lt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "lte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "in",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "Int"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "contains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "icontains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "startswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "istartswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "endswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iendswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "range",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "Int"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "isnull",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Boolean",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "regex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iregex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "containedBy",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Int",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      }
+    ],
+    "on": false,
+    "value": ""
+  },
+  {
+    "name": "ToolNodeToolFilterCategoryFilterInputType",
+    "kind": "INPUT_OBJECT",
+    "inputFields": [
+      {
+        "name": "name",
+        "type": {
+          "kind": "INPUT_OBJECT",
+          "name": "ToolNodeToolFilterCategoryNameFilterInputType",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "description",
+        "type": {
+          "kind": "INPUT_OBJECT",
+          "name": "ToolNodeToolFilterCategoryDescriptionFilterInputType",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "exact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "ID",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      }
+    ],
+    "on": false,
+    "value": ""
+  },
+  {
+    "name": "ToolNodeToolFilterCategoryNameFilterInputType",
+    "kind": "INPUT_OBJECT",
+    "inputFields": [
+      {
+        "name": "exact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iexact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "gt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "gte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "lt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "lte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "in",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "String"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "contains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "icontains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "startswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "istartswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "endswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iendswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "range",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "String"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "isnull",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Boolean",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "regex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iregex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      }
+    ],
+    "on": false,
+    "value": ""
+  },
+  {
+    "name": "ToolNodeToolFilterCategoryDescriptionFilterInputType",
+    "kind": "INPUT_OBJECT",
+    "inputFields": [
+      {
+        "name": "exact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iexact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "gt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "gte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "lt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "lte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "in",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "String"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "contains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "icontains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "startswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "istartswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "endswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iendswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "range",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "String"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "isnull",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Boolean",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "regex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iregex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      }
+    ],
+    "on": false,
+    "value": ""
+  },
+  {
+    "name": "ToolNodeToolFilterNameFilterInputType",
+    "kind": "INPUT_OBJECT",
+    "inputFields": [
+      {
+        "name": "exact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iexact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "gt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "gte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "lt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "lte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "in",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "String"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "contains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "icontains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "startswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "istartswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "endswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iendswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "range",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "String"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "isnull",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Boolean",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "regex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iregex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      }
+    ],
+    "on": false,
+    "value": ""
+  },
+  {
+    "name": "ToolNodeToolFilterModelNumberFilterInputType",
+    "kind": "INPUT_OBJECT",
+    "inputFields": [
+      {
+        "name": "exact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iexact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "gt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "gte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "lt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "lte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "in",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "String"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "contains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "icontains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "startswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "istartswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "endswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iendswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "range",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "String"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "isnull",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Boolean",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "regex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iregex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      }
+    ],
+    "on": false,
+    "value": ""
+  },
+  {
+    "name": "ToolNodeToolFilterDescriptionFilterInputType",
+    "kind": "INPUT_OBJECT",
+    "inputFields": [
+      {
+        "name": "exact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iexact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "gt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "gte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "lt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "lte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "in",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "String"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "contains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "icontains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "startswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "istartswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "endswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iendswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "range",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "String"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "isnull",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Boolean",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "regex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iregex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "String",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      }
+    ],
+    "on": false,
+    "value": ""
+  },
+  {
+    "name": "ToolNodeToolFilterWeightFilterInputType",
+    "kind": "INPUT_OBJECT",
+    "inputFields": [
+      {
+        "name": "exact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iexact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "gt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "gte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "lt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "lte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "in",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "Decimal"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "contains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "icontains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "startswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "istartswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "endswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iendswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "range",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "Decimal"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "isnull",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Boolean",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "regex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iregex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "containedBy",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      }
+    ],
+    "on": false,
+    "value": ""
+  },
+  {
+    "name": "ToolNodeToolFilterPriceFilterInputType",
+    "kind": "INPUT_OBJECT",
+    "inputFields": [
+      {
+        "name": "exact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iexact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "gt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "gte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "lt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "lte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "in",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "Decimal"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "contains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "icontains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "startswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "istartswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "endswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iendswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "range",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "Decimal"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "isnull",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Boolean",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "regex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iregex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "containedBy",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      }
+    ],
+    "on": false,
+    "value": ""
+  },
+  {
+    "name": "ToolNodeToolFilterNoiseLevelFilterInputType",
+    "kind": "INPUT_OBJECT",
+    "inputFields": [
+      {
+        "name": "exact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iexact",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "gt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "gte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "lt",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "lte",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "in",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "Decimal"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "contains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "icontains",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "startswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "istartswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "endswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iendswith",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "range",
+        "type": {
+          "kind": "LIST",
+          "name": null,
+          "ofType": {
+            "kind": "SCALAR",
+            "name": "Decimal"
+          }
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "isnull",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Boolean",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "regex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "iregex",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      },
+      {
+        "name": "containedBy",
+        "type": {
+          "kind": "SCALAR",
+          "name": "Decimal",
+          "ofType": null
+        },
+        "on": false,
+        "value": ""
+      }
+    ],
+    "on": false,
+    "value": ""
+  }
 ]

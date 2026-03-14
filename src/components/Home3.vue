@@ -242,7 +242,7 @@ async function introspect(typeName: string, mode: "F" | "O") {
  * Toggle a field on and cascade-open the first child at each level.
  * "F" = filter mode (recurses into any named type).
  * "O" = order mode (only recurses into INPUT_OBJECT; leaf defaults to "ASC").
- * Does NOT call get() — callers decide when to re-query.
+ * Only mutates state — callers in the template call get() explicitly when user input warrants a refetch.
  */
 function enable(inputField: any, mode: "F" | "O") {
   inputField.on = true;
@@ -410,11 +410,10 @@ function changeNode(level: any, event: Event, mode: "F" | "O") {
   const newOptionName = target.value;
   if (level.selected.name === newOptionName) return;
 
-  // Deactivate old branch, activate new one
+  // Deactivate old branch, activate new one — callers in the template call get() explicitly
   level.selected.on = false;
   const newOption = level.options.find((o: any) => o.name === newOptionName);
   if (newOption) enable(newOption, mode);
-  get(mode === "F"); // Only reset page for filter changes
 }
 
 /** Expand the next unused sibling field within a branch */
@@ -428,14 +427,13 @@ function addNext(level: any, mode: "F" | "O") {
   if (nextField) enable(nextField, mode);
 }
 
-/** Walk backwards along a path turning off nodes; stop when a sibling is still active */
-function deletePath(path: any[], resetPage = true) {
+/** Walk backwards along a path turning off nodes; stop when a sibling is still active. Pure state mutation. */
+function deletePath(path: any[]) {
   for (let i = path.length - 1; i >= 0; i--) {
     const level = path[i];
     level.selected.on = false;
     if (level.options.some((opt: any) => opt.on)) break;
   }
-  get(resetPage);
 }
 
 // ================================================================
@@ -509,7 +507,7 @@ function onSortDrop(idx: number) {
 
   drag_sort_idx.value = null;
   drag_over_sort_idx.value = null;
-  get(false);
+  get();
 }
 
 // ================================================================
@@ -564,8 +562,8 @@ const {
  * Walks active paths to construct deeply nested filter/sort payloads,
  * then recompiles the GraphQL document and swaps variables to trigger Apollo's reactive refetch.
  */
-function get(resetPage = true) {
-  if (resetPage) current_page.value = 1;
+function get() {
+  current_page.value = 1;
 
   q.query.__variables = {};
   q.query[ROOT].__args = {};
@@ -577,17 +575,15 @@ function get(resetPage = true) {
   let filterPayload: any = {};
 
   activeFilterPaths.value.forEach((path) => {
-    let currentLevel = filterPayload;
+    // Skip entire path if the leaf has no value — avoids empty nested objects like { brand: { name: {} } }
+    const leaf = path[path.length - 1]?.selected;
+    if (!leaf || leaf.value === "" || leaf.value === undefined) return;
 
+    let currentLevel = filterPayload;
     for (let i = 0; i < path.length; i++) {
       const node = path[i].selected;
-
-      if (i === path.length - 1) {
-        // Leaf: assign the value (skip blanks to avoid querying `contains: ""`)
-        if (node.value !== "" && node.value !== undefined)
-          currentLevel[node.name] = node.value;
-      } else {
-        // Branch: ensure nested object exists and descend
+      if (i === path.length - 1) currentLevel[node.name] = node.value;
+      else {
         currentLevel[node.name] ??= {};
         currentLevel = currentLevel[node.name];
       }
@@ -651,11 +647,6 @@ function get(resetPage = true) {
   queryVariables.value = newVariables;
 }
 
-/** Proxy so template @keyup.enter and @change handlers read clearly */
-function commitFilterValue() {
-  get();
-}
-
 /** Convenience accessor for the current query result's root field */
 function getEdges() {
   return a_r.value?.[ROOT];
@@ -677,23 +668,14 @@ const paginationOffset = computed(
   () => (current_page.value - 1) * page_size.value
 );
 
-/**
- * Navigate to a specific page and refetch.
- * Unlike filter/sort changes, this does NOT reset current_page to 1.
- */
+/** Set the current page number (clamped to valid range). Pure state mutation. */
 function goToPage(n: number) {
   current_page.value = Math.max(1, Math.min(n, totalPages.value));
-  get(false);
 }
 
-/**
- * Handle page size changes from the input field.
- * Clamps to a minimum of 1, resets to page 1, and refetches.
- */
+/** Set the page size (minimum 1). Pure state mutation. */
 function changePageSize(val: number) {
   page_size.value = Math.max(1, val || 1);
-  current_page.value = 1;
-  get();
 }
 </script>
 
@@ -827,7 +809,10 @@ function changePageSize(val: number) {
                         <td v-else :rowspan="cell.rowSpan" style="height: 1px">
                           <select
                             :value="cell.level.selected.name"
-                            @change="changeNode(cell.level, $event, 'F')"
+                            @change="
+                              changeNode(cell.level, $event, 'F');
+                              get();
+                            "
                             class="btn btn-outline-secondary btn-sm text-capitalize border-secondary text-center rounded-0 h-100 w-100"
                             style="min-height: 31px"
                           >
@@ -852,7 +837,7 @@ function changePageSize(val: number) {
                             v-if="cell.level.fieldType === 'Boolean'"
                             v-model="cell.level.selected.value"
                             class="btn btn-outline-secondary btn-sm border-secondary rounded-0 h-100 pe-3 w-100"
-                            @change="commitFilterValue"
+                            @change="get()"
                             style="min-height: 31px"
                           >
                             <option value="">Select...</option>
@@ -871,7 +856,7 @@ function changePageSize(val: number) {
                                 : 'text'
                             "
                             v-model="cell.level.selected.value"
-                            @keyup.enter="commitFilterValue"
+                            @keyup.enter="get()"
                             :placeholder="cell.level.fieldType + '...'"
                             class="form-control form-control-sm border-secondary rounded-0 h-100 px-3 w-100"
                             style="min-width: 140px; min-height: 31px"
@@ -884,7 +869,10 @@ function changePageSize(val: number) {
                       <button
                         class="btn btn-outline-danger btn-sm rounded-end-pill"
                         style="height: 100%; min-height: 31px"
-                        @click="deletePath(activeFilterPaths[rIdx] || [])"
+                        @click="
+                          deletePath(activeFilterPaths[rIdx] || []);
+                          get();
+                        "
                       >
                         <i class="bi bi-trash3"></i>
                       </button>
@@ -934,7 +922,7 @@ function changePageSize(val: number) {
                       class="dropdown-item text-capitalize"
                       @click="
                         enable(f, 'O');
-                        get(false);
+                        get();
                       "
                     >
                       {{ camel(f.name) }}
@@ -995,7 +983,7 @@ function changePageSize(val: number) {
                           style="min-height: 31px"
                           @click="
                             addNext(level, 'O');
-                            get(false);
+                            get();
                           "
                         >
                           {{ camel(level.selected.name) }}
@@ -1005,7 +993,10 @@ function changePageSize(val: number) {
                       <td v-else style="height: 1px">
                         <select
                           :value="level.selected.name"
-                          @change="changeNode(level, $event, 'O')"
+                          @change="
+                            changeNode(level, $event, 'O');
+                            get();
+                          "
                           class="btn btn-outline-secondary btn-sm text-capitalize border-secondary text-center rounded-0 h-100 w-100"
                           style="min-height: 31px"
                         >
@@ -1024,7 +1015,7 @@ function changePageSize(val: number) {
                           v-model="level.selected.value"
                           class="btn btn-outline-secondary btn-sm border-secondary rounded-0 h-100 w-100"
                           style="min-height: 31px"
-                          @change="get(false)"
+                          @change="get()"
                         >
                           <option value="ASC">ASC</option>
                           <option value="DESC">DESC</option>
@@ -1036,7 +1027,10 @@ function changePageSize(val: number) {
                       <button
                         class="btn btn-outline-danger btn-sm rounded-end-pill"
                         style="height: 100%; min-height: 31px"
-                        @click="deletePath(path, false)"
+                        @click="
+                          deletePath(path);
+                          get();
+                        "
                       >
                         <i class="bi bi-trash3"></i>
                       </button>
@@ -1121,7 +1115,7 @@ function changePageSize(val: number) {
         <!-- Showing X–Y of Z using count (total) and counts (this page) -->
         <span class="text-muted small">
           Showing
-          {{ paginationOffset + 1 }}–{{
+          {{ paginationOffset + 1 }}-{{
             paginationOffset + (getEdges()?.counts || 0)
           }}
           of {{ getEdges()?.count }}
@@ -1137,7 +1131,10 @@ function changePageSize(val: number) {
               p === current_page ? 'btn-primary' : 'btn-outline-secondary'
             "
             style="min-width: 2.2rem"
-            @click="goToPage(p)"
+            @click="
+              goToPage(p);
+              queryVariables = { ...queryVariables, offset: paginationOffset };
+            "
           >
             {{ p }}
           </button>
@@ -1153,7 +1150,8 @@ function changePageSize(val: number) {
             :value="page_size"
             min="1"
             @change="
-              changePageSize(+($event.target as HTMLInputElement).value)
+              changePageSize(+($event.target as HTMLInputElement).value);
+              get();
             "
           />
         </div>

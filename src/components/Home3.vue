@@ -522,9 +522,12 @@ function onSortDrop(idx: number) {
 const q = {
   query: {
     __name: "MyQuery",
-    __variables: {} as any,
+    __variables: { first: "Int", offset: "Int" } as any,
     [ROOT]: {
-      __args: {} as any,
+      __args: {
+        first: new VariableType("first"),
+        offset: new VariableType("offset"),
+      } as any,
       edges: {
         node: {
           name: true,
@@ -547,7 +550,7 @@ const q = {
 };
 
 const queryDoc = ref(gql(jtg(q)));
-const queryVariables = ref<any>({});
+const queryVariables = ref<any>({ first: page_size.value, offset: 0 });
 
 const {
   result: a_r,
@@ -626,6 +629,13 @@ function get(resetPage = true) {
     newVariables["orderBy"] = sort_var_type.value.startsWith("[")
       ? sortPayloads
       : sortPayloads[0];
+  }
+
+  // --- Attach search variable ---
+  if (search.value) {
+    q.query.__variables["search"] = "String";
+    q.query[ROOT].__args["search"] = new VariableType("search");
+    newVariables["search"] = search.value;
   }
 
   // --- Attach pagination variables ---
@@ -711,12 +721,15 @@ function changePageSize(val: number) {
       <div class="d-flex align-items-center my-3">
         <div class="input-group">
           <input
-            v-model="search"
+            :value="search"
             class="form-control bg-secondary-subtle border-0"
-            placeholder="Search (Name, Address)"
+            placeholder="Search..."
             style="height: 3rem"
             type="text"
-            @keyup.enter="get()"
+            @input="
+              search = ($event.target as HTMLInputElement).value.toLowerCase();
+              get();
+            "
           />
           <button
             v-if="search && !q_l"

@@ -27,20 +27,7 @@ import {
   InMemoryCache,
   createHttpLink,
 } from "@apollo/client/core";
-// HTTP connection to the API
-const httpLink = createHttpLink({
-  // You should use an absolute URL here
-  uri:
-    (PROD ? "https://compare-django.onrender.com" : "http://127.0.0.1:8000") +
-    "/graphql/",
-});
-// Cache implementation
-const cache = new InMemoryCache();
-// Create the apollo client
-const apolloClient = new ApolloClient({
-  link: httpLink,
-  cache,
-});
+import { resolveApiBase } from "./ping_check";
 
 /**
  * Bootstrap
@@ -48,10 +35,17 @@ const apolloClient = new ApolloClient({
 import "./assets/main.scss";
 import "bootstrap";
 
-// Create and mount app
-const app = createApp(App);
+(async () => {
+  const base = PROD ? await resolveApiBase() : "http://127.0.0.1:8000";
 
-app.provide(DefaultApolloClient, apolloClient);
+  const httpLink = createHttpLink({ uri: `${base}/graphql/` });
+  // Cache implementation
+  const cache = new InMemoryCache();
+  // Create the apollo client
+  const apolloClient = new ApolloClient({ link: httpLink, cache });
 
-app.mount("#app");
-window.app = app;
+  const app = createApp(App);
+  app.provide(DefaultApolloClient, apolloClient);
+  app.mount("#app");
+  window.app = app;
+})();

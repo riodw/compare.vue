@@ -1,5 +1,6 @@
-const PRIMARY = "https://compare-django.onrender.com";
-const FALLBACK = "http://147.182.211.216";
+const PRIMARY = "https://compared.work";
+// const FALLBACK = "https://147.182.211.216";
+const FALLBACK = "https://compare-django.onrender.com";
 const TIMEOUT_MS = 150;
 
 /**

@@ -12,8 +12,10 @@ export async function resolveApiBase(): Promise<string> {
   const id = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
     const res = await fetch(`${PRIMARY}/graphql/`, {
-      method: "HEAD",
+      method: "POST",
       signal: controller.signal,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: "{__typename}" }),
     });
     // Use the final URL after any redirects so Apollo POSTs go to the right place
     return new URL(res.url).origin;

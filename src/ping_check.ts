@@ -1,4 +1,4 @@
-const PRIMARY = "https://compared.work";
+const PRIMARY = "https://www.compared.work";
 // const FALLBACK = "https://147.182.211.216";
 const FALLBACK = "https://compare-django.onrender.com";
 const TIMEOUT_MS = 150;
@@ -11,11 +11,12 @@ export async function resolveApiBase(): Promise<string> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    await fetch(`${PRIMARY}/graphql/`, {
+    const res = await fetch(`${PRIMARY}/graphql/`, {
       method: "HEAD",
       signal: controller.signal,
     });
-    return PRIMARY;
+    // Use the final URL after any redirects so Apollo POSTs go to the right place
+    return new URL(res.url).origin;
   } catch {
     return FALLBACK;
   } finally {

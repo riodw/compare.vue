@@ -513,20 +513,12 @@ function onSortDrop(idx: number) {
 const q = {
   query: {
     __name: "MyQuery",
-    __variables: {
-      first: "Int",
-      offset: "Int",
-      search: "String",
-      orderBy: "",
-      filter: "",
-    } as any,
+    __variables: { first: "Int", offset: "Int", search: "String" } as any,
     [ROOT]: {
       __args: {
         first: new VariableType("first"),
         offset: new VariableType("offset"),
         search: new VariableType("search"),
-        orderBy: new VariableType("orderBy"),
-        filter: new VariableType("filter"),
       } as any,
       edges: {
         node: {
@@ -549,10 +541,16 @@ const q = {
   },
 };
 
-// Snapshots of the two sub-objects get() mutates — spread on each call gives a clean slate
+// Snapshots of the two sub-objects get() mutates — spread on each call gives a clean slate.
+// orderBy/filter are excluded from q's initial definition (empty type strings break gql compilation)
+// so their static markers live here instead.
 const qq = {
   variables: { ...q.query.__variables },
-  args: { ...q.query[ROOT].__args },
+  args: {
+    ...q.query[ROOT].__args,
+    orderBy: new VariableType("orderBy"),
+    filter: new VariableType("filter"),
+  },
 };
 
 const queryDoc = ref(gql(jtg(q)));

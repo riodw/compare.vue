@@ -513,11 +513,20 @@ function onSortDrop(idx: number) {
 const q = {
   query: {
     __name: "MyQuery",
-    __variables: { first: "Int", offset: "Int" } as any,
+    __variables: {
+      first: "Int",
+      offset: "Int",
+      search: "String",
+      orderBy: "",
+      filter: "",
+    } as any,
     [ROOT]: {
       __args: {
         first: new VariableType("first"),
         offset: new VariableType("offset"),
+        search: new VariableType("search"),
+        orderBy: new VariableType("orderBy"),
+        filter: new VariableType("filter"),
       } as any,
       edges: {
         node: {
@@ -540,6 +549,12 @@ const q = {
   },
 };
 
+// Snapshots of the two sub-objects get() mutates — spread on each call gives a clean slate
+const qq = {
+  variables: { ...q.query.__variables },
+  args: { ...q.query[ROOT].__args },
+};
+
 const queryDoc = ref(gql(jtg(q)));
 const queryVariables = ref<any>({ first: page_size.value, offset: 0 });
 
@@ -558,12 +573,12 @@ const {
 function get() {
   paginationOffset.value = 0;
 
-  q.query.__variables = { first: "Int", offset: "Int", search: "String" };
-  q.query[ROOT].__args = {
-    first: new VariableType("first"),
-    offset: new VariableType("offset"),
-    search: new VariableType("search"),
+  q.query.__variables = {
+    ...qq.variables,
+    orderBy: sort_var_type.value,
+    filter: tool_root.value,
   };
+  q.query[ROOT].__args = { ...qq.args };
   const newVariables: any = {};
 
   // --- Build filter payload ---
@@ -588,11 +603,8 @@ function get() {
   });
 
   // Attach filter variable if any filters have values
-  if (Object.keys(filterPayload).length > 0 && tool_root.value !== "") {
-    q.query.__variables["filter"] = tool_root.value;
-    q.query[ROOT].__args["filter"] = new VariableType("filter");
+  if (Object.keys(filterPayload).length > 0)
     newVariables["filter"] = filterPayload;
-  }
 
   // --- Build sort payload ---
   // Each sort path becomes its own object in the orderBy array so that
@@ -616,13 +628,10 @@ function get() {
   });
 
   // Attach orderBy variable
-  if (sortPayloads.length > 0 && sort_var_type.value !== "") {
-    q.query.__variables["orderBy"] = sort_var_type.value;
-    q.query[ROOT].__args["orderBy"] = new VariableType("orderBy");
+  if (sortPayloads.length > 0)
     newVariables["orderBy"] = sort_var_type.value.startsWith("[")
       ? sortPayloads
       : sortPayloads[0];
-  }
 
   // --- Attach search variable ---
   newVariables["search"] = search.value || null;
@@ -645,14 +654,17 @@ function get() {
 const paginationOffset = ref(0);
 
 /** Current page derived from offset — UI display only */
-const current_page = computed(() =>
-  Math.floor(paginationOffset.value / page_size.value) + 1
+const current_page = computed(
+  () => Math.floor(paginationOffset.value / page_size.value) + 1
 );
 
 /** Set the current page and update the offset variable to trigger a refetch. */
 function goToPage(n: number) {
   paginationOffset.value = (n - 1) * page_size.value;
-  queryVariables.value = { ...queryVariables.value, offset: paginationOffset.value };
+  queryVariables.value = {
+    ...queryVariables.value,
+    offset: paginationOffset.value,
+  };
 }
 </script>
 

@@ -513,12 +513,11 @@ function onSortDrop(idx: number) {
 const q = {
   query: {
     __name: "MyQuery",
-    __variables: { first: "Int", offset: "Int", search: "String" } as any,
+    __variables: { first: "Int", offset: "Int" } as any,
     [ROOT]: {
       __args: {
         first: new VariableType("first"),
         offset: new VariableType("offset"),
-        search: new VariableType("search"),
       } as any,
       edges: {
         node: {
@@ -541,18 +540,6 @@ const q = {
   },
 };
 
-// Snapshots of the two sub-objects get() mutates — spread on each call gives a clean slate.
-// orderBy/filter are excluded from q's initial definition (empty type strings break gql compilation)
-// so their static markers live here instead.
-const qq = {
-  variables: { ...q.query.__variables },
-  args: {
-    ...q.query[ROOT].__args,
-    orderBy: new VariableType("orderBy"),
-    filter: new VariableType("filter"),
-  },
-};
-
 const queryDoc = ref(gql(jtg(q)));
 const queryVariables = ref<any>({ first: page_size.value, offset: 0 });
 
@@ -571,12 +558,8 @@ const {
 function get() {
   paginationOffset.value = 0;
 
-  q.query.__variables = {
-    ...qq.variables,
-    orderBy: sort_var_type.value,
-    filter: tool_root.value,
-  };
-  q.query[ROOT].__args = { ...qq.args };
+  q.query.__variables = {};
+  q.query[ROOT].__args = {};
   const newVariables: any = {};
 
   // --- Build filter payload ---
@@ -601,8 +584,11 @@ function get() {
   });
 
   // Attach filter variable if any filters have values
-  if (Object.keys(filterPayload).length > 0)
+  if (Object.keys(filterPayload).length > 0 && tool_root.value !== "") {
+    q.query[ROOT].__args["filter"] = new VariableType("filter");
+    q.query.__variables["filter"] = tool_root.value;
     newVariables["filter"] = filterPayload;
+  }
 
   // --- Build sort payload ---
   // Each sort path becomes its own object in the orderBy array so that
@@ -626,17 +612,32 @@ function get() {
   });
 
   // Attach orderBy variable
-  if (sortPayloads.length > 0)
+  if (sortPayloads.length > 0 && sort_var_type.value !== "") {
+    q.query[ROOT].__args["orderBy"] = new VariableType("orderBy");
+    q.query.__variables["orderBy"] = sort_var_type.value;
     newVariables["orderBy"] = sort_var_type.value.startsWith("[")
       ? sortPayloads
       : sortPayloads[0];
+  }
 
   // --- Attach search variable ---
-  newVariables["search"] = search.value || null;
+  if (search.value) {
+    q.query[ROOT].__args["search"] = new VariableType("search");
+    q.query.__variables["search"] = "String";
+    newVariables["search"] = search.value;
+  }
 
-  // --- Attach pagination variables ---
-  newVariables["first"] = page_size.value;
-  newVariables["offset"] = paginationOffset.value;
+  // Attach pagination variables
+  if (page_size.value) {
+    q.query[ROOT].__args["first"] = new VariableType("first");
+    q.query.__variables["first"] = "Int";
+    newVariables["first"] = page_size.value;
+  }
+  if (paginationOffset.value) {
+    q.query[ROOT].__args["offset"] = new VariableType("offset");
+    q.query.__variables["offset"] = "Int";
+    newVariables["offset"] = paginationOffset.value;
+  }
 
   // Recompile the query document and swap variables to trigger Apollo's reactive refetch
   queryDoc.value = gql(jtg(q));

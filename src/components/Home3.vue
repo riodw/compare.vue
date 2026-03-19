@@ -34,7 +34,7 @@ const tool_root = ref(""); // introspected INPUT_OBJECT name for the filter type
 const filters = ref<any[]>([]); // flat list of all introspected filter INPUT_OBJECT types
 const sort_root = ref(""); // introspected INPUT_OBJECT name for the sort type
 const sort_var_type = ref(""); // full GraphQL variable type string e.g. "[ToolOrder!]"
-const sort_types = ref<any[]>([]); // flat list of all introspected sort INPUT_OBJECT types
+const orders = ref<any[]>([]); // flat list of all introspected sort INPUT_OBJECT types
 const search_sort_fields = ref(""); // search text inside the "Add Sort" dropdown
 const sort_path_order = ref<string[]>([]); // user's desired sort priority order (path keys)
 const drag_sort_idx = ref<number | null>(null); // index of the row currently being dragged
@@ -124,7 +124,7 @@ watch(q_r, (value) => {
   const filterArg = f.find((o: any) => o.name === "filter");
   if (filterArg?.type?.name) {
     tool_root.value = filterArg.type.name;
-    introspect(filterArg.type.name, "F");
+    introspect(filterArg.type.name, "filters");
   }
 
   // Kick off recursive introspection of the orderBy INPUT_OBJECT tree.
@@ -148,7 +148,7 @@ watch(q_r, (value) => {
     if (innerName) {
       sort_root.value = innerName;
       sort_var_type.value = varType;
-      introspect(innerName, "O");
+      introspect(innerName, "orders");
     }
   }
 });
@@ -180,14 +180,14 @@ const input_query = {
 const { resolveClient } = useApolloClient();
 
 /**
- * Walk an INPUT_OBJECT type graph, storing each type in `store`.
+ * Walk an INPUT_OBJECT type graph, storing each type in the mode's store.
  * Each type and its inputFields get `on`/`value` UI state.
- * "F" = filter introspection, "O" = order introspection.
+ * "filters" = filter introspection, "orders" = order introspection.
  * All sibling branches at each level are fetched in parallel via Promise.all.
  */
-async function introspect(typeName: string, mode: "F" | "O") {
+async function introspect(typeName: string, mode: "filters" | "orders") {
   const client = resolveClient();
-  const store = mode === "F" ? filters : sort_types;
+  const store = ({ filters, orders })[mode];
 
   const { data } = await client.query({
     query: gql(jtg(input_query)),
@@ -233,19 +233,18 @@ async function introspect(typeName: string, mode: "F" | "O") {
 
 /**
  * Toggle a field on and cascade-open the first child at each level.
- * "F" = filter mode (recurses into any named type).
- * "O" = order mode (only recurses into INPUT_OBJECT; leaf defaults to "ASC").
+ * "filters" = filter mode (recurses into any named type).
+ * "orders" = order mode (only recurses into INPUT_OBJECT; leaf defaults to "ASC").
  * Only mutates state — callers in the template call get() explicitly when user input warrants a refetch.
  */
-function enable(inputField: any, mode: "F" | "O") {
+function enable(inputField: any, mode: "filters" | "orders") {
   inputField.on = true;
-  const store = mode === "F" ? filters : sort_types;
 
-  if (mode === "O" && inputField.type?.kind !== "INPUT_OBJECT") {
+  if (mode === "orders" && inputField.type?.kind !== "INPUT_OBJECT") {
     // Sort leaf (ENUM direction) — default to ascending
     if (!inputField.value) inputField.value = "ASC";
   } else if (inputField.type?.name) {
-    const obj = store.value.find((f: any) => f.name === inputField.type.name);
+    const obj = ({ filters, orders })[mode].value.find((f: any) => f.name === inputField.type.name);
     if (obj) {
       obj.on = true;
       // Auto-expand the first child if nothing is selected yet
@@ -261,18 +260,17 @@ function camel(s: string) {
 }
 
 /** Get the root-level inputFields for a given mode's "Add" dropdown */
-function topLevel(mode: "F" | "O") {
-  const [store, root] =
-    mode === "F" ? [filters, tool_root] : [sort_types, sort_root];
+function topLevel(mode: "filters" | "orders") {
+  const root = mode === "filters" ? tool_root : sort_root;
   return (
-    store.value.find((o: any) => o.name === root.value)?.inputFields || []
+    ({ filters, orders })[mode].value.find((o: any) => o.name === root.value)?.inputFields || []
   );
 }
 
 /** Filter the dropdown items by the search text, excluding already-active fields */
-function searchFieldsFn(mode: "F" | "O") {
+function searchFieldsFn(mode: "filters" | "orders") {
   const searchStr = (
-    mode === "F" ? search_fields : search_sort_fields
+    mode === "filters" ? search_fields : search_sort_fields
   ).value.toLowerCase();
   return topLevel(mode).filter(
     (arg: any) => arg.name.toLowerCase().includes(searchStr) && !arg.on
@@ -283,18 +281,18 @@ function searchFieldsFn(mode: "F" | "O") {
  * Walk a type tree and collect every active branch as a linear path.
  * Each path is an array of { selected, options, isLeaf, fieldType } nodes
  * representing one row in the grid UI.
- * "F" = filter (leaf = SCALAR or known primitive).
- * "O" = order  (leaf = anything that isn't INPUT_OBJECT, typically ENUM).
+ * "filters" = filter (leaf = SCALAR or known primitive).
+ * "orders"  = order  (leaf = anything that isn't INPUT_OBJECT, typically ENUM).
  */
-function activePaths(mode: "F" | "O") {
-  const [store, root] =
-    mode === "F" ? [filters, tool_root] : [sort_types, sort_root];
+function activePaths(mode: "filters" | "orders") {
+  const store = ({ filters, orders })[mode];
+  const root = mode === "filters" ? tool_root : sort_root;
   const paths: any[][] = [];
   const rootObj = store.value.find((o: any) => o.name === root.value);
   if (!rootObj?.inputFields) return paths;
 
   function isLeaf(field: any) {
-    if (mode === "O") return field.type?.kind !== "INPUT_OBJECT";
+    if (mode === "orders") return field.type?.kind !== "INPUT_OBJECT";
     return (
       field.type?.kind === "SCALAR" ||
       ["String", "Boolean", "Int", "Float", "Decimal", "ID"].includes(
@@ -344,8 +342,8 @@ function activePaths(mode: "F" | "O") {
   return paths;
 }
 
-const activeFilterPaths = computed(() => activePaths("F"));
-const activeSortPaths = computed(() => activePaths("O"));
+const activeFilterPaths = computed(() => activePaths("filters"));
+const activeSortPaths = computed(() => activePaths("orders"));
 
 /**
  * Transform flat paths into a 2D grid with merged cells (rowspans).
@@ -397,7 +395,7 @@ const filterGrid = computed(() => {
 });
 
 /** Swap the selected node at a given level to a different option (via select change) */
-function changeNode(level: any, event: Event, mode: "F" | "O") {
+function changeNode(level: any, event: Event, mode: "filters" | "orders") {
   const target = event.target as HTMLSelectElement;
   if (!target) return;
   const newOptionName = target.value;
@@ -410,10 +408,9 @@ function changeNode(level: any, event: Event, mode: "F" | "O") {
 }
 
 /** Expand the next unused sibling field within a branch */
-function addNext(level: any, mode: "F" | "O") {
+function addNext(level: any, mode: "filters" | "orders") {
   if (!level.selected.type?.name) return;
-  const store = mode === "F" ? filters : sort_types;
-  const obj = store.value.find(
+  const obj = ({ filters, orders })[mode].value.find(
     (f: any) => f.name === level.selected.type.name
   );
   const nextField = obj?.inputFields?.find((f: any) => !f.on);
@@ -748,13 +745,13 @@ function goToPage(n: number) {
                       v-model="search_fields"
                       class="form-control py-1"
                       type="text"
-                      :placeholder="topLevel('F').length + ' Filters...'"
+                      :placeholder="topLevel('filters').length + ' Filters...'"
                     />
                   </li>
-                  <li v-for="f in searchFieldsFn('F')" :key="f.name">
+                  <li v-for="f in searchFieldsFn('filters')" :key="f.name">
                     <button
                       class="dropdown-item text-capitalize"
-                      @click="enable(f, 'F')"
+                      @click="enable(f, 'filters')"
                     >
                       {{ camel(f.name) }}
                     </button>
@@ -788,7 +785,7 @@ function goToPage(n: number) {
                           <button
                             class="btn btn-outline-primary btn-sm text-capitalize w-100 rounded-start-pill px-3 h-100 w-100"
                             style="min-height: 31px"
-                            @click="addNext(cell.level, 'F')"
+                            @click="addNext(cell.level, 'filters')"
                           >
                             {{ camel(cell.level.selected.name) }}
                           </button>
@@ -798,7 +795,7 @@ function goToPage(n: number) {
                           <select
                             :value="cell.level.selected.name"
                             @change="
-                              changeNode(cell.level, $event, 'F');
+                              changeNode(cell.level, $event, 'filters');
                               get();
                             "
                             class="btn btn-outline-secondary btn-sm text-capitalize border-secondary text-center rounded-0 h-100 w-100"
@@ -902,14 +899,14 @@ function goToPage(n: number) {
                       v-model="search_sort_fields"
                       class="form-control py-1"
                       type="text"
-                      :placeholder="topLevel('O').length + ' Sorts...'"
+                      :placeholder="topLevel('orders').length + ' Sorts...'"
                     />
                   </li>
-                  <li v-for="f in searchFieldsFn('O')" :key="f.name">
+                  <li v-for="f in searchFieldsFn('orders')" :key="f.name">
                     <button
                       class="dropdown-item text-capitalize"
                       @click="
-                        enable(f, 'O');
+                        enable(f, 'orders');
                         get();
                       "
                     >
@@ -970,7 +967,7 @@ function goToPage(n: number) {
                           class="btn btn-outline-primary btn-sm text-capitalize w-100 rounded-start-pill px-3 h-100"
                           style="min-height: 31px"
                           @click="
-                            addNext(level, 'O');
+                            addNext(level, 'orders');
                             get();
                           "
                         >
@@ -982,7 +979,7 @@ function goToPage(n: number) {
                         <select
                           :value="level.selected.name"
                           @change="
-                            changeNode(level, $event, 'O');
+                            changeNode(level, $event, 'orders');
                             get();
                           "
                           class="btn btn-outline-secondary btn-sm text-capitalize border-secondary text-center rounded-0 h-100 w-100"

@@ -559,8 +559,12 @@ const {
 function get() {
   current_page.value = 1;
 
-  q.query.__variables = {};
-  q.query[ROOT].__args = {};
+  q.query.__variables = { first: "Int", offset: "Int", search: "String" };
+  q.query[ROOT].__args = {
+    first: new VariableType("first"),
+    offset: new VariableType("offset"),
+    search: new VariableType("search"),
+  };
   const newVariables: any = {};
 
   // --- Build filter payload ---
@@ -622,17 +626,9 @@ function get() {
   }
 
   // --- Attach search variable ---
-  if (search.value) {
-    q.query.__variables["search"] = "String";
-    q.query[ROOT].__args["search"] = new VariableType("search");
-    newVariables["search"] = search.value;
-  }
+  newVariables["search"] = search.value || null;
 
   // --- Attach pagination variables ---
-  q.query.__variables["first"] = "Int";
-  q.query.__variables["offset"] = "Int";
-  q.query[ROOT].__args["first"] = new VariableType("first");
-  q.query[ROOT].__args["offset"] = new VariableType("offset");
   newVariables["first"] = page_size.value;
   newVariables["offset"] = paginationOffset.value;
 
@@ -662,9 +658,10 @@ const paginationOffset = computed(
   () => (current_page.value - 1) * page_size.value
 );
 
-/** Set the current page number (clamped to valid range). Pure state mutation. */
+/** Set the current page and update the offset variable to trigger a refetch. */
 function goToPage(n: number) {
   current_page.value = Math.max(1, Math.min(n, totalPages.value));
+  queryVariables.value = { ...queryVariables.value, offset: paginationOffset.value };
 }
 
 /** Set the page size (minimum 1). Pure state mutation. */
@@ -1125,10 +1122,7 @@ function changePageSize(val: number) {
               p === current_page ? 'btn-primary' : 'btn-outline-secondary'
             "
             style="min-width: 2.2rem"
-            @click="
-              goToPage(p);
-              queryVariables = { ...queryVariables, offset: paginationOffset };
-            "
+            @click="goToPage(p)"
           >
             {{ p }}
           </button>

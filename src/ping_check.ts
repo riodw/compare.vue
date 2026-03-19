@@ -1,7 +1,7 @@
 const PRIMARY = "https://www.compared.work";
 // const FALLBACK = "https://147.182.211.216";
 const FALLBACK = "https://compare-django.onrender.com";
-const TIMEOUT_MS = 150;
+const TIMEOUT_MS = 450;
 
 /**
  * Pings the primary hostname. If it doesn't respond within TIMEOUT_MS,

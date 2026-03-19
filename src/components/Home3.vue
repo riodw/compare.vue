@@ -41,9 +41,6 @@ const drag_sort_idx = ref<number | null>(null); // index of the row currently be
 const drag_over_sort_idx = ref<number | null>(null); // index of the row being hovered over
 const page_size = ref(100); // number of results per page
 
-// ---- Template Refs ----
-const searchFilters = ref<any>(null);
-const searchSortFilters = ref<any>(null);
 
 /** Recursively strip __typename fields injected by Apollo cache */
 const stripTypename = (obj: any): any => {
@@ -733,10 +730,8 @@ function goToPage(n: number) {
                   aria-expanded="false"
                   :disabled="!!(q_l || q_e)"
                   @click="
-                    nextTick(() => {
-                      search_fields = '';
-                      searchFilters?.focus();
-                    })
+                    search_fields = '';
+                    nextTick(() => $event.currentTarget.nextElementSibling?.querySelector('input')?.focus())
                   "
                 >
                   <i class="bi bi-plus-lg"></i>
@@ -745,7 +740,6 @@ function goToPage(n: number) {
                 <ul class="dropdown-menu dropdown-menu-end">
                   <li class="mx-2 mb-1">
                     <input
-                      ref="searchFilters"
                       v-model="search_fields"
                       class="form-control py-1"
                       type="text"
@@ -887,10 +881,8 @@ function goToPage(n: number) {
                   aria-expanded="false"
                   :disabled="!!(q_l || q_e)"
                   @click="
-                    nextTick(() => {
-                      search_sorts = '';
-                      searchSortFilters?.focus();
-                    })
+                    search_sorts = '';
+                    nextTick(() => $event.currentTarget.nextElementSibling?.querySelector('input')?.focus())
                   "
                 >
                   <i class="bi bi-plus-lg"></i>
@@ -899,7 +891,6 @@ function goToPage(n: number) {
                 <ul class="dropdown-menu dropdown-menu-end">
                   <li class="mx-2 mb-1">
                     <input
-                      ref="searchSortFilters"
                       v-model="search_sorts"
                       class="form-control py-1"
                       type="text"

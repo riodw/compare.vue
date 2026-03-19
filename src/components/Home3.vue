@@ -40,7 +40,6 @@ const sort_path_order = ref<string[]>([]); // user's desired sort priority order
 const drag_sort_idx = ref<number | null>(null); // index of the row currently being dragged
 const drag_over_sort_idx = ref<number | null>(null); // index of the row being hovered over
 const page_size = ref(100); // number of results per page
-const current_page = ref(1); // 1-indexed current page
 
 // ---- Template Refs ----
 const searchFilters = ref<any>(null);
@@ -557,7 +556,7 @@ const {
  * then recompiles the GraphQL document and swaps variables to trigger Apollo's reactive refetch.
  */
 function get() {
-  current_page.value = 1;
+  paginationOffset.value = 0;
 
   q.query.__variables = { first: "Int", offset: "Int", search: "String" };
   q.query[ROOT].__args = {
@@ -653,14 +652,18 @@ const totalPages = computed(() => {
   return Math.max(1, Math.ceil(count / page_size.value));
 });
 
-/** Zero-based offset for the current page */
-const paginationOffset = computed(
-  () => (current_page.value - 1) * page_size.value
+/** Zero-based offset into the result set — the true pagination source of truth */
+const paginationOffset = ref(0);
+
+/** Current page derived from offset — UI display only */
+const current_page = computed(() =>
+  Math.floor(paginationOffset.value / page_size.value) + 1
 );
 
 /** Set the current page and update the offset variable to trigger a refetch. */
 function goToPage(n: number) {
-  current_page.value = Math.max(1, Math.min(n, totalPages.value));
+  const clamped = Math.max(1, Math.min(n, totalPages.value));
+  paginationOffset.value = (clamped - 1) * page_size.value;
   queryVariables.value = { ...queryVariables.value, offset: paginationOffset.value };
 }
 

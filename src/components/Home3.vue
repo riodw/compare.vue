@@ -30,12 +30,12 @@ const search = ref("");
 const show_filters = ref(true);
 const search_fields = ref(""); // search text inside the "Add Filter" dropdown
 const fields = ref<any[]>([]); // root-level model args (non-envelope)
-const tool_root = ref(""); // introspected INPUT_OBJECT name for the filter type
+const filter_root = ref(""); // introspected INPUT_OBJECT name for the filter type
 const filters = ref<any[]>([]); // flat list of all introspected filter INPUT_OBJECT types
-const sort_root = ref(""); // introspected INPUT_OBJECT name for the sort type
+const order_root = ref(""); // introspected INPUT_OBJECT name for the sort type
 const sort_var_type = ref(""); // full GraphQL variable type string e.g. "[ToolOrder!]"
 const orders = ref<any[]>([]); // flat list of all introspected sort INPUT_OBJECT types
-const search_sort_fields = ref(""); // search text inside the "Add Sort" dropdown
+const search_orders = ref(""); // search text inside the "Add Sort" dropdown
 const sort_path_order = ref<string[]>([]); // user's desired sort priority order (path keys)
 const drag_sort_idx = ref<number | null>(null); // index of the row currently being dragged
 const drag_over_sort_idx = ref<number | null>(null); // index of the row being hovered over
@@ -123,7 +123,7 @@ watch(q_r, (value) => {
   // Kick off recursive introspection of the filter INPUT_OBJECT tree
   const filterArg = f.find((o: any) => o.name === "filter");
   if (filterArg?.type?.name) {
-    tool_root.value = filterArg.type.name;
+    filter_root.value = filterArg.type.name;
     introspect(filterArg.type.name, "filters");
   }
 
@@ -146,7 +146,7 @@ watch(q_r, (value) => {
     }
     const { varType, innerName } = unwrapType(orderByArg.type);
     if (innerName) {
-      sort_root.value = innerName;
+      order_root.value = innerName;
       sort_var_type.value = varType;
       introspect(innerName, "orders");
     }
@@ -261,17 +261,13 @@ function camel(s: string) {
 
 /** Get the root-level inputFields for a given mode's "Add" dropdown */
 function topLevel(mode: "filters" | "orders") {
-  const root = mode === "filters" ? tool_root : sort_root;
-  return (
-    ({ filters, orders })[mode].value.find((o: any) => o.name === root.value)?.inputFields || []
-  );
+  const roots = { filters: filter_root, orders: order_root };
+  return ({ filters, orders })[mode].value.find((o: any) => o.name === roots[mode].value)?.inputFields || [];
 }
 
 /** Filter the dropdown items by the search text, excluding already-active fields */
 function searchFieldsFn(mode: "filters" | "orders") {
-  const searchStr = (
-    mode === "filters" ? search_fields : search_sort_fields
-  ).value.toLowerCase();
+  const searchStr = ({ filters: search_fields, orders: search_orders })[mode].value.toLowerCase();
   return topLevel(mode).filter(
     (arg: any) => arg.name.toLowerCase().includes(searchStr) && !arg.on
   );
@@ -286,9 +282,9 @@ function searchFieldsFn(mode: "filters" | "orders") {
  */
 function activePaths(mode: "filters" | "orders") {
   const store = ({ filters, orders })[mode];
-  const root = mode === "filters" ? tool_root : sort_root;
+  const roots = { filters: filter_root, orders: order_root };
   const paths: any[][] = [];
-  const rootObj = store.value.find((o: any) => o.name === root.value);
+  const rootObj = store.value.find((o: any) => o.name === roots[mode].value);
   if (!rootObj?.inputFields) return paths;
 
   function isLeaf(field: any) {
@@ -581,9 +577,9 @@ function get() {
   });
 
   // Attach filter variable if any filters have values
-  if (Object.keys(filterPayload).length > 0 && tool_root.value !== "") {
+  if (Object.keys(filterPayload).length > 0 && filter_root.value !== "") {
     q.query[ROOT].__args["filter"] = new VariableType("filter");
-    q.query.__variables["filter"] = tool_root.value;
+    q.query.__variables["filter"] = filter_root.value;
     newVariables["filter"] = filterPayload;
   }
 
@@ -884,7 +880,7 @@ function goToPage(n: number) {
                   :disabled="!!(q_l || q_e)"
                   @click="
                     nextTick(() => {
-                      search_sort_fields = '';
+                      search_orders = '';
                       searchSortFilters?.focus();
                     })
                   "
@@ -896,7 +892,7 @@ function goToPage(n: number) {
                   <li class="mx-2 mb-1">
                     <input
                       ref="searchSortFilters"
-                      v-model="search_sort_fields"
+                      v-model="search_orders"
                       class="form-control py-1"
                       type="text"
                       :placeholder="topLevel('orders').length + ' Sorts...'"

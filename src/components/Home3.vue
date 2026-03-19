@@ -303,16 +303,9 @@ function activePaths(mode: "filters" | "sorts") {
   }
 
   function traverse(currentObj: any, currentPath: any[]) {
-    // Terminal: no further fields to recurse into
-    if (!currentObj.inputFields) {
-      if (currentPath.length > 0) paths.push(currentPath);
-      return;
-    }
+    const activeFields = currentObj.inputFields?.filter((f: any) => f.on);
 
-    const activeFields = currentObj.inputFields.filter((f: any) => f.on);
-
-    // No active children — emit the path so far (if non-empty)
-    if (!activeFields.length) {
+    if (!activeFields?.length) {
       if (currentPath.length > 0) paths.push(currentPath);
       return;
     }

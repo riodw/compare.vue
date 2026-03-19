@@ -260,10 +260,10 @@ function camel(s: string) {
 
 /** Get the root-level inputFields for a given mode's "Add" dropdown */
 function topLevel(mode: "filters" | "sorts") {
-  const roots = { filters: filter_root, sorts: sort_root };
+  const root = { filters: filter_root, sorts: sort_root }[mode];
   return (
     { filters, sorts }[mode].value.find(
-      (o: any) => o.name === roots[mode].value
+      (o: any) => o.name === root.value
     )?.inputFields || []
   );
 }
@@ -287,9 +287,9 @@ function searchFieldsFn(mode: "filters" | "sorts") {
  */
 function activePaths(mode: "filters" | "sorts") {
   const store = { filters, sorts }[mode];
-  const roots = { filters: filter_root, sorts: sort_root };
+  const root = { filters: filter_root, sorts: sort_root }[mode];
   const paths: any[][] = [];
-  const rootObj = store.value.find((o: any) => o.name === roots[mode].value);
+  const rootObj = store.value.find((o: any) => o.name === root.value);
   if (!rootObj?.inputFields) return paths;
 
   function isLeaf(field: any) {
@@ -471,10 +471,6 @@ watch(activeSortPaths, (paths) => {
   }
 });
 
-/** Begin dragging a sort row */
-function onSortDragStart(idx: number) {
-  drag_sort_idx.value = idx;
-}
 
 /**
  * Handle dropping a sort row onto a new position.
@@ -916,7 +912,7 @@ function goToPage(n: number) {
                     v-for="(path, rIdx) in orderedSortPaths"
                     :key="'sort-row-' + rIdx"
                     draggable="true"
-                    @dragstart="onSortDragStart(rIdx)"
+                    @dragstart="drag_sort_idx = rIdx"
                     @dragover.prevent="drag_over_sort_idx = rIdx"
                     @dragleave="drag_over_sort_idx = null"
                     @drop="onSortDrop(rIdx)"

@@ -5,6 +5,7 @@ import {
   VariableType,
 } from "json-to-graphql-query";
 import { ref, watch, computed, nextTick } from "vue";
+import { useApolloClient } from "@vue/apollo-composable";
 
 // The GraphQL root query field name — change this to point at a different model
 const ROOT = "tools";
@@ -177,33 +178,23 @@ const input_query = {
   },
 };
 
-// Separate lazy query instances so filter and sort introspection don't interfere
-const {
-  result: f_r,
-  load: f_l,
-  error: f_err,
-  refetch: f_get,
-} = useLazyQuery(gql(jtg(input_query)));
-
-const {
-  result: s_r,
-  load: s_l,
-  error: s_err,
-  refetch: s_get,
-} = useLazyQuery(gql(jtg(input_query)));
+const { resolveClient } = useApolloClient();
 
 /**
- * Walk an INPUT_OBJECT type graph depth-first, storing each type in `store`.
+ * Walk an INPUT_OBJECT type graph, storing each type in `store`.
  * Each type and its inputFields get `on`/`value` UI state.
  * "F" = filter introspection, "O" = order introspection.
+ * All sibling branches at each level are fetched in parallel via Promise.all.
  */
 async function introspect(typeName: string, mode: "F" | "O") {
-  const [r, l, g, store] =
-    mode === "F" ? [f_r, f_l, f_get, filters] : [s_r, s_l, s_get, sort_types];
+  const client = resolveClient();
+  const store = mode === "F" ? filters : sort_types;
 
-  let data;
-  if (r.value === undefined) data = await l(null, { name: typeName });
-  else data = (await g({ name: typeName }))?.data;
+  const { data } = await client.query({
+    query: gql(jtg(input_query)),
+    variables: { name: typeName },
+    fetchPolicy: "cache-first",
+  });
 
   if (!data?.__type?.inputFields) return;
 
@@ -216,7 +207,7 @@ async function introspect(typeName: string, mode: "F" | "O") {
   // Initialize UI toggle state on the type and each field
   inf.on = false;
   inf.value = "";
-  inf.inputFields.map((o: any) => {
+  inf.inputFields.forEach((o: any) => {
     o.on = false;
     o.value = "";
   });
@@ -226,9 +217,12 @@ async function introspect(typeName: string, mode: "F" | "O") {
   if (existingIndex !== -1) Object.assign(store.value[existingIndex], inf);
   else store.value.push(inf);
 
-  // Recurse into any nested INPUT_OBJECT children
-  for (const o of inf.inputFields)
-    if (o.type.kind === "INPUT_OBJECT") await introspect(o.type.name, mode);
+  // Recurse into all INPUT_OBJECT children in parallel
+  await Promise.all(
+    inf.inputFields
+      .filter((o: any) => o.type.kind === "INPUT_OBJECT")
+      .map((o: any) => introspect(o.type.name, mode))
+  );
 }
 
 // ================================================================

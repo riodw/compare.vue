@@ -636,21 +636,10 @@ function get() {
   queryVariables.value = newVariables;
 }
 
-/** Convenience accessor for the current query result's root field */
-function getEdges() {
-  return a_r.value?.[ROOT];
-}
-
 // ================================================================
 // 5. PAGINATION
 //    Offset-based pagination using first/offset variables.
 // ================================================================
-
-/** Total number of pages based on result count and page size */
-const totalPages = computed(() => {
-  const count = getEdges()?.count || 0;
-  return Math.max(1, Math.ceil(count / page_size.value));
-});
 
 /** Zero-based offset into the result set — the true pagination source of truth */
 const paginationOffset = ref(0);
@@ -662,14 +651,8 @@ const current_page = computed(() =>
 
 /** Set the current page and update the offset variable to trigger a refetch. */
 function goToPage(n: number) {
-  const clamped = Math.max(1, Math.min(n, totalPages.value));
-  paginationOffset.value = (clamped - 1) * page_size.value;
+  paginationOffset.value = (n - 1) * page_size.value;
   queryVariables.value = { ...queryVariables.value, offset: paginationOffset.value };
-}
-
-/** Set the page size (minimum 1). Pure state mutation. */
-function changePageSize(val: number) {
-  page_size.value = Math.max(1, val || 1);
 }
 </script>
 
@@ -1071,7 +1054,7 @@ function changePageSize(val: number) {
         <h5 v-else-if="a_e" class="alert alert-danger text-center m-0">
           {{ a_e }}
         </h5>
-        <div v-else-if="getEdges()?.count" class="table-responsive">
+        <div v-else-if="a_r?.[ROOT]?.count" class="table-responsive">
           <table class="table table-hover m-0">
             <thead>
               <tr class="table-secondary">
@@ -1082,7 +1065,7 @@ function changePageSize(val: number) {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="h in getEdges()?.edges" :key="h.node.name">
+              <tr v-for="h in a_r?.[ROOT]?.edges" :key="h.node.name">
                 <td>{{ h.node.name }}</td>
                 <td>{{ h.node.brand?.name }}</td>
                 <td>{{ h.node.category?.name }}</td>
@@ -1103,22 +1086,22 @@ function changePageSize(val: number) {
 
       <!-- PAGINATION -->
       <div
-        v-if="getEdges()?.count"
+        v-if="a_r?.[ROOT]?.count"
         class="d-flex align-items-center justify-content-between my-3 flex-wrap gap-2"
       >
         <!-- Showing X–Y of Z using count (total) and counts (this page) -->
         <span class="text-muted small">
           Showing
           {{ paginationOffset + 1 }}-{{
-            paginationOffset + (getEdges()?.counts || 0)
+            paginationOffset + (a_r?.[ROOT]?.counts || 0)
           }}
-          of {{ getEdges()?.count }}
+          of {{ a_r?.[ROOT]?.count }}
         </span>
 
         <!-- Page number buttons -->
         <div class="d-flex flex-wrap gap-1">
           <button
-            v-for="p in totalPages"
+            v-for="p in Math.ceil((a_r?.[ROOT]?.count || 0) / page_size)"
             :key="p"
             class="btn btn-sm"
             :class="
@@ -1141,7 +1124,7 @@ function changePageSize(val: number) {
             :value="page_size"
             min="1"
             @change="
-              changePageSize(+($event.target as HTMLInputElement).value);
+              page_size = Math.abs(+($event.target as HTMLInputElement).value);
               get();
             "
           />

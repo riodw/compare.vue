@@ -32,10 +32,10 @@ const search_fields = ref(""); // search text inside the "Add Filter" dropdown
 const fields = ref<any[]>([]); // root-level model args (non-envelope)
 const filter_root = ref(""); // introspected INPUT_OBJECT name for the filter type
 const filters = ref<any[]>([]); // flat list of all introspected filter INPUT_OBJECT types
-const order_root = ref(""); // introspected INPUT_OBJECT name for the sort type
+const sort_root = ref(""); // introspected INPUT_OBJECT name for the sort type
 const sort_var_type = ref(""); // full GraphQL variable type string e.g. "[ToolOrder!]"
-const orders = ref<any[]>([]); // flat list of all introspected sort INPUT_OBJECT types
-const search_orders = ref(""); // search text inside the "Add Sort" dropdown
+const sorts = ref<any[]>([]); // flat list of all introspected sort INPUT_OBJECT types
+const search_sorts = ref(""); // search text inside the "Add Sort" dropdown
 const sort_path_order = ref<string[]>([]); // user's desired sort priority order (path keys)
 const drag_sort_idx = ref<number | null>(null); // index of the row currently being dragged
 const drag_over_sort_idx = ref<number | null>(null); // index of the row being hovered over
@@ -146,9 +146,9 @@ watch(q_r, (value) => {
     }
     const { varType, innerName } = unwrapType(orderByArg.type);
     if (innerName) {
-      order_root.value = innerName;
+      sort_root.value = innerName;
       sort_var_type.value = varType;
-      introspect(innerName, "orders");
+      introspect(innerName, "sorts");
     }
   }
 });
@@ -182,12 +182,12 @@ const { resolveClient } = useApolloClient();
 /**
  * Walk an INPUT_OBJECT type graph, storing each type in the mode's store.
  * Each type and its inputFields get `on`/`value` UI state.
- * "filters" = filter introspection, "orders" = order introspection.
+ * "filters" = filter introspection, "sorts" = order introspection.
  * All sibling branches at each level are fetched in parallel via Promise.all.
  */
-async function introspect(typeName: string, mode: "filters" | "orders") {
+async function introspect(typeName: string, mode: "filters" | "sorts") {
   const client = resolveClient();
-  const store = ({ filters, orders })[mode];
+  const store = { filters, sorts }[mode];
 
   const { data } = await client.query({
     query: gql(jtg(input_query)),
@@ -234,17 +234,19 @@ async function introspect(typeName: string, mode: "filters" | "orders") {
 /**
  * Toggle a field on and cascade-open the first child at each level.
  * "filters" = filter mode (recurses into any named type).
- * "orders" = order mode (only recurses into INPUT_OBJECT; leaf defaults to "ASC").
+ * "sorts" = order mode (only recurses into INPUT_OBJECT; leaf defaults to "ASC").
  * Only mutates state — callers in the template call get() explicitly when user input warrants a refetch.
  */
-function enable(inputField: any, mode: "filters" | "orders") {
+function enable(inputField: any, mode: "filters" | "sorts") {
   inputField.on = true;
 
-  if (mode === "orders" && inputField.type?.kind !== "INPUT_OBJECT") {
+  if (mode === "sorts" && inputField.type?.kind !== "INPUT_OBJECT") {
     // Sort leaf (ENUM direction) — default to ascending
     if (!inputField.value) inputField.value = "ASC";
   } else if (inputField.type?.name) {
-    const obj = ({ filters, orders })[mode].value.find((f: any) => f.name === inputField.type.name);
+    const obj = { filters, sorts }[mode].value.find(
+      (f: any) => f.name === inputField.type.name
+    );
     if (obj) {
       obj.on = true;
       // Auto-expand the first child if nothing is selected yet
@@ -260,14 +262,20 @@ function camel(s: string) {
 }
 
 /** Get the root-level inputFields for a given mode's "Add" dropdown */
-function topLevel(mode: "filters" | "orders") {
-  const roots = { filters: filter_root, orders: order_root };
-  return ({ filters, orders })[mode].value.find((o: any) => o.name === roots[mode].value)?.inputFields || [];
+function topLevel(mode: "filters" | "sorts") {
+  const roots = { filters: filter_root, sorts: sort_root };
+  return (
+    { filters, sorts }[mode].value.find(
+      (o: any) => o.name === roots[mode].value
+    )?.inputFields || []
+  );
 }
 
 /** Filter the dropdown items by the search text, excluding already-active fields */
-function searchFieldsFn(mode: "filters" | "orders") {
-  const searchStr = ({ filters: search_fields, orders: search_orders })[mode].value.toLowerCase();
+function searchFieldsFn(mode: "filters" | "sorts") {
+  const searchStr = { filters: search_fields, sorts: search_sorts }[
+    mode
+  ].value.toLowerCase();
   return topLevel(mode).filter(
     (arg: any) => arg.name.toLowerCase().includes(searchStr) && !arg.on
   );
@@ -278,17 +286,17 @@ function searchFieldsFn(mode: "filters" | "orders") {
  * Each path is an array of { selected, options, isLeaf, fieldType } nodes
  * representing one row in the grid UI.
  * "filters" = filter (leaf = SCALAR or known primitive).
- * "orders"  = order  (leaf = anything that isn't INPUT_OBJECT, typically ENUM).
+ * "sorts"  = order  (leaf = anything that isn't INPUT_OBJECT, typically ENUM).
  */
-function activePaths(mode: "filters" | "orders") {
-  const store = ({ filters, orders })[mode];
-  const roots = { filters: filter_root, orders: order_root };
+function activePaths(mode: "filters" | "sorts") {
+  const store = { filters, sorts }[mode];
+  const roots = { filters: filter_root, sorts: sort_root };
   const paths: any[][] = [];
   const rootObj = store.value.find((o: any) => o.name === roots[mode].value);
   if (!rootObj?.inputFields) return paths;
 
   function isLeaf(field: any) {
-    if (mode === "orders") return field.type?.kind !== "INPUT_OBJECT";
+    if (mode === "sorts") return field.type?.kind !== "INPUT_OBJECT";
     return (
       field.type?.kind === "SCALAR" ||
       ["String", "Boolean", "Int", "Float", "Decimal", "ID"].includes(
@@ -339,7 +347,7 @@ function activePaths(mode: "filters" | "orders") {
 }
 
 const activeFilterPaths = computed(() => activePaths("filters"));
-const activeSortPaths = computed(() => activePaths("orders"));
+const activeSortPaths = computed(() => activePaths("sorts"));
 
 /**
  * Transform flat paths into a 2D grid with merged cells (rowspans).
@@ -391,7 +399,7 @@ const filterGrid = computed(() => {
 });
 
 /** Swap the selected node at a given level to a different option (via select change) */
-function changeNode(level: any, event: Event, mode: "filters" | "orders") {
+function changeNode(level: any, event: Event, mode: "filters" | "sorts") {
   const target = event.target as HTMLSelectElement;
   if (!target) return;
   const newOptionName = target.value;
@@ -404,9 +412,9 @@ function changeNode(level: any, event: Event, mode: "filters" | "orders") {
 }
 
 /** Expand the next unused sibling field within a branch */
-function addNext(level: any, mode: "filters" | "orders") {
+function addNext(level: any, mode: "filters" | "sorts") {
   if (!level.selected.type?.name) return;
-  const obj = ({ filters, orders })[mode].value.find(
+  const obj = { filters, sorts }[mode].value.find(
     (f: any) => f.name === level.selected.type.name
   );
   const nextField = obj?.inputFields?.find((f: any) => !f.on);
@@ -880,7 +888,7 @@ function goToPage(n: number) {
                   :disabled="!!(q_l || q_e)"
                   @click="
                     nextTick(() => {
-                      search_orders = '';
+                      search_sorts = '';
                       searchSortFilters?.focus();
                     })
                   "
@@ -892,17 +900,17 @@ function goToPage(n: number) {
                   <li class="mx-2 mb-1">
                     <input
                       ref="searchSortFilters"
-                      v-model="search_orders"
+                      v-model="search_sorts"
                       class="form-control py-1"
                       type="text"
-                      :placeholder="topLevel('orders').length + ' Sorts...'"
+                      :placeholder="topLevel('sorts').length + ' Sorts...'"
                     />
                   </li>
-                  <li v-for="f in searchFieldsFn('orders')" :key="f.name">
+                  <li v-for="f in searchFieldsFn('sorts')" :key="f.name">
                     <button
                       class="dropdown-item text-capitalize"
                       @click="
-                        enable(f, 'orders');
+                        enable(f, 'sorts');
                         get();
                       "
                     >
@@ -963,7 +971,7 @@ function goToPage(n: number) {
                           class="btn btn-outline-primary btn-sm text-capitalize w-100 rounded-start-pill px-3 h-100"
                           style="min-height: 31px"
                           @click="
-                            addNext(level, 'orders');
+                            addNext(level, 'sorts');
                             get();
                           "
                         >
@@ -975,7 +983,7 @@ function goToPage(n: number) {
                         <select
                           :value="level.selected.name"
                           @change="
-                            changeNode(level, $event, 'orders');
+                            changeNode(level, $event, 'sorts');
                             get();
                           "
                           class="btn btn-outline-secondary btn-sm text-capitalize border-secondary text-center rounded-0 h-100 w-100"

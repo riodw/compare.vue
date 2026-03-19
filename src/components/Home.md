@@ -31,26 +31,26 @@ args → stripTypename() → exclude NON_MODEL_ARGS → exclude ID types → fie
 
 `stripTypename()` recursively removes `__typename` fields injected by Apollo's cache normalization. The remaining args represent the model's own queryable fields (name, brand, category, etc.).
 
-#### b) Discover the filter type → kick off `introspect(typeName, "F")`
+#### b) Discover the filter type → kick off `introspect(typeName, "filters")`
 
-Finds the arg named `"filter"`. Its `type.name` (e.g. `"ToolFilter"`) becomes `tool_root` — the root INPUT_OBJECT for the filter type tree. Calls `introspect()` in filter mode to recursively walk it.
+Finds the arg named `"filter"`. Its `type.name` (e.g. `"ToolFilter"`) becomes `filter_root` — the root INPUT_OBJECT for the filter type tree. Calls `introspect()` in filter mode to recursively walk it.
 
-#### c) Discover the orderBy type → kick off `introspect(typeName, "O")`
+#### c) Discover the orderBy type → kick off `introspect(typeName, "sorts")`
 
 Finds the arg named `"orderBy"`. Because orderBy is typically wrapped in `LIST` and/or `NON_NULL`, the inline `unwrapType()` helper recursively peels off wrappers to recover:
 
 - `innerName` — the actual INPUT_OBJECT name (e.g. `"ToolOrder"`) → stored in `sort_root`
 - `varType` — the full GraphQL variable type string (e.g. `"[ToolOrder!]"`) → stored in `sort_var_type`
 
-Then calls `introspect()` in order mode to recursively walk the sort type tree.
+Then calls `introspect()` in sort mode to recursively walk the sort type tree.
 
 ### 1.3 `introspect(typeName, mode)` — recursive INPUT_OBJECT discovery
 
 This is the shared workhorse for both filter and sort type trees. It:
 
-1. **Selects the right store** based on mode:
-   - `"F"` → writes to `filters` ref
-   - `"O"` → writes to `sort_types` ref
+1. **Selects the right store** using bracket-lookup on mode:
+   - `"filters"` → writes to `filters` ref
+   - `"sorts"` → writes to `sorts` ref
 
 2. **Fetches the type** by calling `client.query()` directly via `useApolloClient`, passing `input_query` with `{ name: typeName }` as variables and `fetchPolicy: "cache-first"`. Each call gets its own isolated Promise — there is no shared reactive result ref. Apollo's cache deduplicates any type that appears more than once in the tree (e.g. `StringFilter` referenced by multiple parent branches) at zero extra network cost.
 
@@ -66,7 +66,7 @@ This is the shared workhorse for both filter and sort type trees. It:
 
 **Removed:** The two `useLazyQuery` instances (`f_r` / `f_l` / `f_get` and `s_r` / `s_l` / `s_get`). The `input_query` object is kept — it is still used as the query document passed to `client.query()`.
 
-**Result:** `filters` contains a flat list of every INPUT_OBJECT type in the filter tree. `sort_types` contains the same for the sort tree. Each has `inputFields` decorated with `on`/`value` state. The entire tree is populated in parallel from the moment the watcher fires.
+**Result:** `filters` contains a flat list of every INPUT_OBJECT type in the filter tree. `sorts` contains the same for the sort tree. Each has `inputFields` decorated with `on`/`value` state. The entire tree is populated in parallel from the moment the watcher fires.
 
 ---
 
@@ -78,13 +78,13 @@ A plain JS object representing the GraphQL query shape. Its `__variables` and `_
 
 ### 2.2 `useQuery(queryDoc, queryVariables)` — reactive data query
 
-Apollo's `useQuery` watches both `queryDoc` (a compiled GQL document) and `queryVariables` (a ref of variable values). Whenever either changes, Apollo re-executes the query. Returns `a_r` (result), `a_l` (loading), `a_e` (error).
+Apollo's `useQuery` watches both `queryDoc` (a compiled GQL document) and `queryVariables` (a ref of variable values). Whenever either changes, Apollo re-executes the query. Returns `a_r` (result), `a_l` (loading), `a_e` (error). The result is accessed directly in the template as `a_r?.[ROOT]?`.
 
 ### 2.3 `get()` — rebuild and execute
 
 The central function. Called by every user interaction that should refresh data. Steps:
 
-1. **Reset pagination** — always resets `current_page` to 1.
+1. **Reset pagination** — sets `paginationOffset.value = 0`, which resets to the first page.
 
 2. **Clear query args** — empties `q.query.__variables` and `q.query[ROOT].__args`.
 
@@ -108,19 +108,15 @@ The central function. Called by every user interaction that should refresh data.
 
 7. **Attach search variable** — if `search` has a value, declares `$search: String` and passes it as an arg.
 
-8. **Attach pagination variables** — declares `$first` and `$offset` with current `page_size` and computed `paginationOffset`.
+8. **Attach pagination variables** — `$first` is declared only if `page_size` is truthy; `$offset` is declared only if `paginationOffset` is truthy (omitted on page 1, which is offset 0).
 
 9. **Recompile and swap** — `gql(jtg(q))` compiles the skeleton into a GQL document. Setting `queryDoc.value` and `queryVariables.value` triggers Apollo's reactive refetch.
-
-### 2.4 `getEdges()` — convenience accessor
-
-Returns `a_r.value?.[ROOT]` — the root field of the current query result. Used throughout the template to access `.edges`, `.count`, and `.counts`.
 
 ---
 
 ## Phase 3 — UI Helpers (Shared by Filters & Sorts)
 
-These functions are parameterized by `mode: "F" | "O"` to serve both filter and sort UIs from a single implementation.
+These functions are parameterized by `mode: "filters" | "sorts"` to serve both filter and sort UIs from a single implementation. The correct store and root are resolved via bracket-lookup: `({ filters, sorts })[mode]` and `{ filters: filter_root, sorts: sort_root }[mode]`.
 
 ### 3.1 `camel(s)` — display formatter
 
@@ -128,23 +124,18 @@ Converts camelCase to spaced words: `"brandName"` → `"brand Name"`. Used on al
 
 ### 3.2 `topLevel(mode)` — root-level dropdown options
 
-Returns the `inputFields` array from the root type of the given mode:
-
-- `"F"` → looks up `tool_root` in `filters`
-- `"O"` → looks up `sort_root` in `sort_types`
-
-These are the top-level options shown in the "Add Filter" / "Add Sort" dropdowns.
+Uses `({ filters, sorts })[mode]` to get the store and `{ filters: filter_root, sorts: sort_root }[mode]` to get the root type name. Returns the `inputFields` of the root type — the top-level options shown in the "Add Filter" / "Add Sort" dropdowns.
 
 ### 3.3 `searchFieldsFn(mode)` — filtered dropdown items
 
-Filters `topLevel(mode)` by the corresponding search text ref (`search_fields` for filters, `search_sort_fields` for sorts), excluding fields that are already active (`on === true`).
+Filters `topLevel(mode)` by the corresponding search text ref (`search_fields` for filters, `search_sorts` for sorts) via `{ filters: search_fields, sorts: search_sorts }[mode]`, excluding fields that are already active (`on === true`).
 
 ### 3.4 `enable(inputField, mode)` — activate a field and cascade
 
 Turns a field `on` and recursively opens the first child at each level until a leaf is reached.
 
-- **Filter mode (`"F"`)**: recurses into any named type. Leaf fields start with `value: ""` (user must type a value before it affects the query).
-- **Order mode (`"O"`)**: only recurses into `INPUT_OBJECT` children. Non-INPUT_OBJECT leaves (typically ENUM) default to `"ASC"`.
+- **Filter mode (`"filters"`)**: recurses into any named type. Leaf fields start with `value: ""` (user must type a value before it affects the query).
+- **Sort mode (`"sorts"`)**: only recurses into `INPUT_OBJECT` children. Non-INPUT_OBJECT leaves (typically ENUM) default to `"ASC"`.
 
 **Does NOT call `get()`** — callers decide when to re-query. This prevents unnecessary fetches when adding a new filter that has no value yet.
 
@@ -160,12 +151,12 @@ Walks the type tree and collects every active branch as a linear array of level 
 Leaf detection differs by mode:
 
 - **Filter**: leaf = `SCALAR` kind or known primitive name (`String`, `Boolean`, `Int`, `Float`, `Decimal`, `ID`)
-- **Order**: leaf = anything that isn't `INPUT_OBJECT` (catches ENUM sort directions)
+- **Sort**: leaf = anything that isn't `INPUT_OBJECT` (catches ENUM sort directions)
 
 Used by two computeds:
 
-- `activeFilterPaths = computed(() => activePaths("F"))`
-- `activeSortPaths = computed(() => activePaths("O"))`
+- `activeFilterPaths = computed(() => activePaths("filters"))`
+- `activeSortPaths = computed(() => activePaths("sorts"))`
 
 ### 3.6 `filterGrid` (computed) — rowspan-merged 2D grid
 
@@ -219,21 +210,21 @@ Splices the dragged entry out of `sort_path_order` and re-inserts it at the drop
 
 ## Phase 5 — Pagination
 
-### 5.1 `totalPages` (computed)
+### 5.1 `paginationOffset` (ref) — source of truth
 
-`Math.ceil(count / page_size)`, minimum 1. `count` comes from the GraphQL response (total matching results across all pages).
+A `ref(0)` holding the zero-based offset passed to the `$offset` variable. This is the primary pagination state. All other pagination values derive from it.
 
-### 5.2 `paginationOffset` (computed)
+### 5.2 `current_page` (computed)
 
-`(current_page - 1) * page_size` — the zero-based offset passed to the `$offset` variable.
+`Math.floor(paginationOffset / page_size) + 1` — a display-only computed derived from `paginationOffset`. Used in the template to highlight the active page button. Never written to directly.
 
 ### 5.3 `goToPage(n)`
 
-Clamps `n` between 1 and `totalPages` and sets `current_page`. Does **not** call `get()`. The template pagination button calls `goToPage(p)` and then updates `queryVariables` directly with the new offset, which triggers Apollo's reactive refetch without going through `get()` (which would reset the page back to 1).
+Sets `paginationOffset.value = (n - 1) * page_size` directly, then patches `queryVariables.value` with the new offset to trigger Apollo's reactive refetch. Does not call `get()` (which would reset the offset back to 0).
 
-### 5.4 `changePageSize(val)`
+### 5.4 Page size
 
-Clamps to minimum 1 and calls `get()`, which resets to page 1 and rebuilds the query with the new `page_size`.
+No dedicated function. The template `@change` handler takes `Math.abs()` of the input value, assigns it directly to `page_size`, then calls `get()` — which resets `paginationOffset` to 0 and rebuilds the query with the new page size. The total page count is inlined in the template as `Math.ceil((a_r?.[ROOT]?.count || 0) / page_size)`.
 
 ---
 
@@ -243,9 +234,10 @@ Clamps to minimum 1 and calls `get()`, which resets to page 1 and rebuilds the q
 
 ```
 click "Filter" dropdown
-  → searchFieldsFn("F") populates dropdown (filtered by search_fields, excluding active)
+  → button @click resets search_fields = "" and focuses the input via DOM traversal
+  → searchFieldsFn("filters") populates dropdown (filtered by search_fields, excluding active)
   → user clicks a field
-  → enable(field, "F")
+  → enable(field, "filters")
     → field.on = true
     → recurse into first child until leaf
     → leaf starts with value: ""
@@ -260,9 +252,10 @@ click "Filter" dropdown
 
 ```
 click "Sort" dropdown
-  → searchFieldsFn("O") populates dropdown
+  → button @click resets search_sorts = "" and focuses the input via DOM traversal
+  → searchFieldsFn("sorts") populates dropdown
   → user clicks a field
-  → enable(field, "O") + get()  [both called inline in template]
+  → enable(field, "sorts") + get()  [both called inline in template]
     → field.on = true
     → recurse into first child until leaf
     → leaf defaults to "ASC"
@@ -310,10 +303,10 @@ deletePath(path)
 
 ```
 click page button (template)
-  → goToPage(p) → current_page = p (clamped)
-  → queryVariables = { ...queryVariables, offset: paginationOffset }
-    → paginationOffset recomputes from updated current_page
+  → goToPage(p) → paginationOffset = (p - 1) * page_size
+  → queryVariables.value = { ...queryVariables.value, offset: paginationOffset }
     → queryVariables update triggers Apollo reactive refetch
+    → current_page recomputes automatically from new paginationOffset
 ```
 
 ---
@@ -324,30 +317,33 @@ click page button (template)
 fields_query (auto)
   └→ watch(q_r)
        ├→ fields
-       ├→ introspect("F") ─┐  both fire without await;
-       └→ introspect("O") ─┘  run in parallel
+       ├→ introspect("filters") ─┐  both fire without await;
+       └→ introspect("sorts")   ─┘  run in parallel
 
 introspect(typeName, mode)
   └→ client.query() [isolated per call, cache-first]
        └→ Promise.all(children) [all siblings in-flight at once]
             └→ ... recurse until no INPUT_OBJECT children remain
-  writes to → filters (mode "F") or sort_types (mode "O")
+  writes to → filters (mode "filters") or sorts (mode "sorts")
 
-filters + sort_types
-  ├→ topLevel(mode)
-  ├→ searchFieldsFn(mode)
-  ├→ activePaths("F") → activeFilterPaths → filterGrid
-  └→ activePaths("O") → activeSortPaths
-                           ├→ watch → sort_path_order (sync)
-                           └→ orderedSortPaths (user-ordered)
+filters + sorts
+  ├→ topLevel(mode)       [({ filters, sorts })[mode]]
+  ├→ searchFieldsFn(mode) [({ filters, sorts })[mode]]
+  ├→ activePaths("filters") → activeFilterPaths → filterGrid
+  └→ activePaths("sorts")   → activeSortPaths
+                               ├→ watch → sort_path_order (sync)
+                               └→ orderedSortPaths (user-ordered)
 
 get()
   ├← activeFilterPaths  (reads)
   ├← orderedSortPaths   (reads)
-  ├← paginationOffset   (reads)
+  ├← paginationOffset   (reads — always 0 inside get())
   ├→ queryDoc            (writes → triggers useQuery)
   └→ queryVariables      (writes → triggers useQuery)
 
+paginationOffset (ref)
+  └→ current_page (computed — display only)
+
 useQuery(queryDoc, queryVariables)
-  └→ a_r → getEdges() → template rendering
+  └→ a_r → a_r?.[ROOT]? → template rendering
 ```

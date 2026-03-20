@@ -41,7 +41,6 @@ const drag_sort_idx = ref<number | null>(null); // index of the row currently be
 const drag_over_sort_idx = ref<number | null>(null); // index of the row being hovered over
 const page_size = ref(100); // number of results per page
 
-
 /** Recursively strip __typename fields injected by Apollo cache */
 const stripTypename = (obj: any): any => {
   if (Array.isArray(obj)) return obj.map(stripTypename);
@@ -262,9 +261,8 @@ function camel(s: string) {
 function topLevel(mode: "filters" | "sorts") {
   const root = { filters: filter_root, sorts: sort_root }[mode];
   return (
-    { filters, sorts }[mode].value.find(
-      (o: any) => o.name === root.value
-    )?.inputFields || []
+    { filters, sorts }[mode].value.find((o: any) => o.name === root.value)
+      ?.inputFields || []
   );
 }
 
@@ -471,7 +469,6 @@ watch(activeSortPaths, (paths) => {
   }
 });
 
-
 /**
  * Handle dropping a sort row onto a new position.
  * Splices the dragged entry out of sort_path_order and re-inserts it at the target index.
@@ -661,8 +658,11 @@ function goToPage(n: number) {
       <nav class="mb-2" aria-label="breadcrumb">
         <ol class="breadcrumb m-0">
           <li class="breadcrumb-item"><a href="#">Home</a></li>
-          <li class="breadcrumb-item active" aria-current="page">
-            Properties
+          <li
+            class="breadcrumb-item active text-capitalize"
+            aria-current="page"
+          >
+            {{ camel(ROOT) }}
           </li>
         </ol>
       </nav>
@@ -706,9 +706,7 @@ function goToPage(n: number) {
         <ul v-if="show_filters" class="list-group list-group-flush">
           <li class="list-group-item">
             <!-- Filter topbar: count + "Add Filter" dropdown -->
-            <div
-              class="d-flex align-items-center justify-content-between mb-2"
-            >
+            <div class="d-flex align-items-center justify-content-between">
               <h5 class="m-0">
                 <b>{{ activeFilterPaths.length }} Filters</b>
               </h5>
@@ -720,7 +718,11 @@ function goToPage(n: number) {
                   :disabled="!!(q_l || q_e)"
                   @click="
                     search_fields = '';
-                    nextTick(() => $event.currentTarget.nextElementSibling?.querySelector('input')?.focus())
+                    nextTick(() =>
+                      $event.currentTarget.nextElementSibling
+                        ?.querySelector('input')
+                        ?.focus()
+                    );
                   "
                 >
                   <i class="bi bi-plus-lg"></i>
@@ -752,11 +754,16 @@ function goToPage(n: number) {
               v-if="filterGrid.length"
               class="border-top pt-2 mt-2 overflow-x-auto"
             >
-              <table>
+              <table cellpadding="0" cellspacing="0">
                 <tbody>
                   <tr
                     v-for="(rowCells, rIdx) in filterGrid"
                     :key="'row-' + rIdx"
+                    :class="
+                      rIdx > 0 && !rowCells[0]?.isSpanned
+                        ? 'table-row-group'
+                        : ''
+                    "
                   >
                     <template
                       v-for="(cell, cIdx) in rowCells"
@@ -771,7 +778,6 @@ function goToPage(n: number) {
                         >
                           <button
                             class="btn btn-outline-primary btn-sm text-capitalize w-100 rounded-start-pill px-3 h-100 w-100"
-                            style="min-height: 31px"
                             @click="addNext(cell.level, 'filters')"
                           >
                             {{ camel(cell.level.selected.name) }}
@@ -785,7 +791,7 @@ function goToPage(n: number) {
                               changeNode(cell.level, $event, 'filters');
                               get();
                             "
-                            class="btn btn-outline-secondary btn-sm text-capitalize border-secondary text-center rounded-0 h-100 w-100"
+                            class="btn btn-outline-secondary btn-sm text-capitalize border-secondary text-center rounded-0 h-100 w-100 d-print-none"
                             style="min-height: 31px"
                           >
                             <option
@@ -796,6 +802,9 @@ function goToPage(n: number) {
                               {{ camel(opt.name) }}
                             </option>
                           </select>
+                          <div class="d-none d-print-block btn btn-outline-secondary btn-sm text-capitalize text-nowrap rounded-0 w-100">
+                            {{ camel(cell.level.selected.name) }}
+                          </div>
                         </td>
 
                         <!-- Leaf cell: value input, type depends on the field's GraphQL type -->
@@ -839,7 +848,7 @@ function goToPage(n: number) {
                     <!-- Delete: removes this filter path -->
                     <td>
                       <button
-                        class="btn btn-outline-danger btn-sm rounded-end-pill"
+                        class="btn btn-outline-danger btn-sm rounded-end-pill d-print-none"
                         style="height: 100%; min-height: 31px"
                         @click="
                           deletePath(activeFilterPaths[rIdx] || []);
@@ -857,9 +866,7 @@ function goToPage(n: number) {
 
           <!-- Sort topbar + grid (mirrors filter UI but leaf is ASC/DESC dropdown) -->
           <li class="list-group-item">
-            <div
-              class="d-flex align-items-center justify-content-between mb-2"
-            >
+            <div class="d-flex align-items-center justify-content-between">
               <h5 class="m-0">
                 <b>{{ activeSortPaths.length }} Sorts</b>
               </h5>
@@ -871,7 +878,11 @@ function goToPage(n: number) {
                   :disabled="!!(q_l || q_e)"
                   @click="
                     search_sorts = '';
-                    nextTick(() => $event.currentTarget.nextElementSibling?.querySelector('input')?.focus())
+                    nextTick(() =>
+                      $event.currentTarget.nextElementSibling
+                        ?.querySelector('input')
+                        ?.focus()
+                    );
                   "
                 >
                   <i class="bi bi-plus-lg"></i>
@@ -906,7 +917,7 @@ function goToPage(n: number) {
               v-if="orderedSortPaths.length"
               class="border-top pt-2 mt-2 overflow-x-auto"
             >
-              <table>
+              <table cellpadding="0" cellspacing="0">
                 <tbody>
                   <tr
                     v-for="(path, rIdx) in orderedSortPaths"
@@ -928,11 +939,12 @@ function goToPage(n: number) {
                         drag_over_sort_idx === rIdx &&
                         drag_sort_idx !== null &&
                         drag_sort_idx !== rIdx,
+                      'table-row-group': rIdx > 0,
                     }"
                     style="cursor: grab"
                   >
                     <!-- Drag handle -->
-                    <td class="pe-0" style="height: 1px; width: 1px">
+                    <td class="pe-0 d-print-none" style="height: 1px; width: 1px">
                       <div
                         class="d-flex align-items-center justify-content-center h-100 text-muted"
                         style="min-height: 31px"
@@ -994,7 +1006,7 @@ function goToPage(n: number) {
                     <!-- Delete: removes this sort path -->
                     <td>
                       <button
-                        class="btn btn-outline-danger btn-sm rounded-end-pill"
+                        class="btn btn-outline-danger btn-sm rounded-end-pill d-print-none"
                         style="height: 100%; min-height: 31px"
                         @click="
                           deletePath(path);
@@ -1127,8 +1139,17 @@ function goToPage(n: number) {
 </template>
 
 <style scoped>
+@media print {
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+}
+
 /* Highlight the drop target row with a top border during drag */
 .sort-drop-target td {
   border-top: 2px solid var(--bs-primary) !important;
+}
+.table-row-group td {
+  padding-top: 0.25rem;
 }
 </style>

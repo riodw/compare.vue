@@ -16,7 +16,7 @@
 /* LEFT NAV */
 #viewport {
   #left-nav {
-    width: 255px;
+    width: 250px;
     z-index: 1000;
     height: 100vh;
     overflow-x: hidden;

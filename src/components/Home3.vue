@@ -704,6 +704,7 @@ function goToPage(n: number) {
       <!-- FILTERS & SORTS PANEL -->
       <div v-if="!q_e" class="card mb-4">
         <ul v-if="show_filters" class="list-group list-group-flush">
+          <!-- Filters -->
           <li class="list-group-item">
             <!-- Filter topbar: count + "Add Filter" dropdown -->
             <div class="d-flex align-items-center justify-content-between">
@@ -802,7 +803,9 @@ function goToPage(n: number) {
                               {{ camel(opt.name) }}
                             </option>
                           </select>
-                          <div class="d-none d-print-block btn btn-outline-secondary btn-sm text-capitalize text-nowrap rounded-0 w-100">
+                          <div
+                            class="d-none d-print-block btn btn-outline-secondary btn-sm text-capitalize text-nowrap rounded-0 w-100"
+                          >
                             {{ camel(cell.level.selected.name) }}
                           </div>
                         </td>
@@ -864,7 +867,16 @@ function goToPage(n: number) {
             </div>
           </li>
 
-          <!-- Sort topbar + grid (mirrors filter UI but leaf is ASC/DESC dropdown) -->
+          <!-- Columns -->
+          <li class="list-group-item">
+            <div class="d-flex align-items-center justify-content-between">
+              <h5 class="m-0">
+                <b>{{ activeSortPaths.length }} Columns</b>
+              </h5>
+            </div>
+          </li>
+
+          <!-- Sorts -->
           <li class="list-group-item">
             <div class="d-flex align-items-center justify-content-between">
               <h5 class="m-0">
@@ -944,7 +956,10 @@ function goToPage(n: number) {
                     style="cursor: grab"
                   >
                     <!-- Drag handle -->
-                    <td class="pe-0 d-print-none" style="height: 1px; width: 1px">
+                    <td
+                      class="pe-0 d-print-none"
+                      style="height: 1px; width: 1px"
+                    >
                       <div
                         class="d-flex align-items-center justify-content-center h-100 text-muted"
                         style="min-height: 31px"
@@ -1022,9 +1037,9 @@ function goToPage(n: number) {
             </div>
           </li>
 
-          <!-- Collapse toggle -->
+          <!-- Show/Hide -->
           <li
-            class="list-group-item d-flex align-items-center justify-content-center text-center p-0"
+            class="list-group-item d-flex align-items-center justify-content-center text-center p-0 d-print-none"
           >
             <button class="btn btn-link btn-sm" @click="show_filters = false">
               <i class="bi bi-chevron-up"></i>
@@ -1040,12 +1055,17 @@ function goToPage(n: number) {
             class="list-group-item d-flex align-items-center justify-content-between"
           >
             <b>{{ activeFilterPaths.length }} Filters</b>
+            <b>{{ activeSortPaths.length }} Columns</b>
+            <b>{{ activeSortPaths.length }} Sorts</b>
+          </li>
+          <li
+            class="list-group-item d-flex align-items-center justify-content-center text-center p-0 d-print-none"
+          >
             <button class="btn btn-link btn-sm" @click="show_filters = true">
               <i class="bi bi-chevron-down"></i>
               expand
               <i class="bi bi-chevron-down"></i>
             </button>
-            <b>{{ activeSortPaths.length }} Sorts</b>
           </li>
         </ul>
       </div>

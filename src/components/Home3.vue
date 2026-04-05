@@ -611,13 +611,12 @@ function get() {
     newVariables["search"] = search.value;
   }
 
-  // Attach pagination variables
+  // Attach pagination variables — always included together since goToPage
+  // patches queryVariables directly and needs $offset in the compiled doc.
   if (page_size.value) {
     q.query[ROOT].__args["first"] = new VariableType("first");
     q.query.__variables["first"] = "Int";
     newVariables["first"] = page_size.value;
-  }
-  if (paginationOffset.value) {
     q.query[ROOT].__args["offset"] = new VariableType("offset");
     q.query.__variables["offset"] = "Int";
     newVariables["offset"] = paginationOffset.value;

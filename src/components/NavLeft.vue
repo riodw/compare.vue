@@ -1,7 +1,10 @@
 <script setup lang="ts"></script>
 
 <template>
-  <div id="left-nav" class="fixed-top bg-body user-select-none p-0 d-print-none">
+  <div
+    id="left-nav"
+    class="fixed-top bg-body user-select-none p-0 d-print-none"
+  >
     <nav class="navbar bg-body shadow-sm" style="z-index: 1000">
       <div
         class="container-fluid justify-content-between align-items-center flex-nowrap"

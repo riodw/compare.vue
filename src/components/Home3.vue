@@ -506,16 +506,13 @@ const q = {
       edges: {
         node: {
           name: true,
-          brand: { name: true },
-          category: { name: true },
-          toolMetrics: {
-            edges: {
-              node: {
-                value: true,
-                metric: { name: true },
-              },
-            },
-          },
+          weight: true,
+          price: true,
+          noiseLevel: true,
+          modelNumber: true,
+          isRedacted: true,
+          id: true,
+          description: true,
         },
       },
       count: true,
@@ -1081,24 +1078,22 @@ function goToPage(n: number) {
           <table class="table table-hover m-0">
             <thead>
               <tr class="table-secondary">
-                <th>Name</th>
-                <th>Brand</th>
-                <th>Category</th>
-                <th>Metrics</th>
+                <th
+                  v-for="key in Object.keys(q.query[ROOT].edges.node)"
+                  :key="key"
+                  class="text-capitalize"
+                >
+                  {{ camel(key) }}
+                </th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="h in a_r?.[ROOT]?.edges" :key="h.node.name">
-                <td>{{ h.node.name }}</td>
-                <td>{{ h.node.brand?.name }}</td>
-                <td>{{ h.node.category?.name }}</td>
-                <td>
-                  <div v-for="(m, i) in h.node.toolMetrics?.edges" :key="i">
-                    {{ m.node.metric?.name }}: {{ m.node.value }}
-                    <span v-if="i < h.node.toolMetrics.edges.length - 1">
-                      ,
-                    </span>
-                  </div>
+              <tr v-for="h in a_r?.[ROOT]?.edges" :key="h.node.id">
+                <td
+                  v-for="key in Object.keys(q.query[ROOT].edges.node)"
+                  :key="key"
+                >
+                  {{ h.node[key] }}
                 </td>
               </tr>
             </tbody>

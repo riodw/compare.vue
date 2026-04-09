@@ -25,21 +25,27 @@ const NON_MODEL_ARGS = [
   "not",
 ];
 
-// ---- State ----
-const search = ref("");
-const show_filters = ref(true);
-const search_fields = ref(""); // search text inside the "Add Filter" dropdown
-const fields = ref<any[]>([]); // root-level model args (non-envelope)
-const filter_root = ref(""); // introspected INPUT_OBJECT name for the filter type
-const filters = ref<any[]>([]); // flat list of all introspected filter INPUT_OBJECT types
-const sort_root = ref(""); // introspected INPUT_OBJECT name for the sort type
-const sort_var_type = ref(""); // full GraphQL variable type string e.g. "[ToolOrder!]"
-const sorts = ref<any[]>([]); // flat list of all introspected sort INPUT_OBJECT types
-const search_sorts = ref(""); // search text inside the "Add Sort" dropdown
-const sort_path_order = ref<string[]>([]); // user's desired sort priority order (path keys)
-const drag_sort_idx = ref<number | null>(null); // index of the row currently being dragged
-const drag_over_sort_idx = ref<number | null>(null); // index of the row being hovered over
-const page_size = ref(100); // number of results per page
+// ---- Global State ----
+const search = ref("");          // global search input
+const show_filters = ref(true);  // toggle the filters/sorts panel
+const page_size = ref(100);      // results per page
+
+// ---- Schema Introspection ----
+const fields = ref<any[]>([]);   // model fields discovered from ROOT query args (non-envelope)
+
+// ---- Filters ----
+const filter_root = ref("");     // root INPUT_OBJECT type name (e.g. "ToolFilter")
+const filters = ref<any[]>([]);  // flat store of all introspected filter INPUT_OBJECT types
+const search_fields = ref("");   // search text inside the "Add Filter" dropdown
+
+// ---- Sorts ----
+const sort_root = ref("");           // root INPUT_OBJECT type name (e.g. "ToolOrder")
+const sort_var_type = ref("");       // full GraphQL variable type string e.g. "[ToolOrder!]"
+const sorts = ref<any[]>([]);        // flat store of all introspected sort INPUT_OBJECT types
+const search_sorts = ref("");        // search text inside the "Add Sort" dropdown
+const sort_path_order = ref<string[]>([]);       // user's drag-and-drop sort priority (path keys)
+const drag_sort_idx = ref<number | null>(null);  // drag source row index
+const drag_over_sort_idx = ref<number | null>(null); // drag hover target row index
 
 /** Recursively strip __typename fields injected by Apollo cache */
 const stripTypename = (obj: any): any => {

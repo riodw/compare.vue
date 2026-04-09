@@ -2,7 +2,7 @@
 
 ## Context
 
-Home3.vue has a dynamic GraphQL query builder with filter and sort introspection. Both use `introspect()` to recursively walk INPUT_OBJECT trees, store results in flat refs, and rebuild the query in `get()`. The `edges.node` selection set is currently hardcoded. This plan adds a parallel columns system that introspects OBJECT types (return types), stores them in the same flat-store pattern, and rebuilds `edges.node` dynamically from an ordered active-columns array. Logic only — no HTML/template changes.
+Home3.vue has a dynamic GraphQL query builder with filter and sort introspection. Both use `introspect()` to recursively walk INPUT_OBJECT trees, store results in flat refs, and rebuild the query in `get()`. The `edges.node` selection set is currently hardcoded. This plan adds a parallel columns system that introspects OBJECT types (return types), stores them in the same flat-store pattern, and rebuilds `edges.node` dynamically. Columns use the same `.on` pattern as filters/sorts — no separate "active" array. A `column_order` ref (mirroring `sort_path_order`) tracks left-to-right display order. Logic only — no HTML/template changes.
 
 ## Critical File
 
@@ -30,10 +30,13 @@ fields: {
 ## Step 2 — New state refs (after line 42)
 
 ```ts
-const columns = ref<any[]>([]);            // flat store of introspected OBJECT types
-const column_root = ref("");               // root node type name (e.g., "ToolNode")
-const columns_active = ref<string[]>([]);  // ordered active column field names
+// ---- Columns ----
+const column_root = ref("");              // root OBJECT type name (e.g. "ToolNode")
+const columns = ref<any[]>([]);           // flat store of introspected OBJECT types
+const column_order = ref<string[]>([]);   // user's drag-and-drop column order (field names)
 ```
+
+No `columns_active` array. Which columns are shown is determined by `.on` on each field in the `columns` store (same pattern as filters/sorts). The `column_order` ref tracks left-to-right display order (same pattern as `sort_path_order` tracks sort priority).
 
 And a constant for connection envelope fields to strip during column introspection:
 
@@ -118,15 +121,51 @@ After existing filter/sort discovery, add a third branch:
 2. `unwrapType()` to get Connection type name
 3. `resolveConnectionNodeType()` to get node type name → store in `column_root`
 4. `introspectColumns(nodeTypeName)` to walk the OBJECT tree
-5. On completion: initialize `columns_active` with all scalar fields, then call `get()`
+5. On completion: set `.on = true` on all scalar fields of the root node type (default visible), initialize `column_order` with those field names, then call `get()`
 
 All three trees (filters, sorts, columns) fire in parallel from the watcher. `cache-first` handles overlap.
 
+### Step 7b — Computed + watcher for column ordering (mirrors sort ordering pattern)
+
+Same pattern as `orderedSortPaths` / `watch(activeSortPaths)`:
+
+```ts
+// Collect active columns from the store (fields with .on === true)
+const activeColumns = computed(() => {
+  const rootType = columns.value.find((c: any) => c.name === column_root.value);
+  if (!rootType?.fields) return [];
+  return rootType.fields.filter((f: any) => f.on);
+});
+
+// Reorder active columns per user's drag order
+const orderedColumns = computed(() => {
+  const cols = activeColumns.value;
+  const order = column_order.value;
+  const byName = new Map(cols.map((c: any) => [c.name, c]));
+  const result: any[] = [];
+  for (const name of order) {
+    const c = byName.get(name);
+    if (c) { result.push(c); byName.delete(name); }
+  }
+  for (const c of byName.values()) result.push(c);
+  return result;
+});
+
+// Keep column_order in sync when columns toggle on/off
+watch(activeColumns, (cols) => {
+  const currentNames = new Set(cols.map((c: any) => c.name));
+  column_order.value = column_order.value.filter((n) => currentNames.has(n));
+  for (const c of cols) {
+    if (!column_order.value.includes(c.name)) column_order.value.push(c.name);
+  }
+});
+```
+
 ---
 
-## Step 8 — Modify `get()` to rebuild `edges.node` from `columns_active`
+## Step 8 — Modify `get()` to rebuild `edges.node` from `orderedColumns`
 
-Insert at the start of `get()`, before variables reset. Walk `columns_active`, look up each field in the `columns` store, and build the node object:
+Insert at the start of `get()`, before variables reset. Walk `orderedColumns` (the computed that respects `.on` + `column_order`), and build the node object:
 
 - **SCALAR field** → `node[name] = true`
 - **OBJECT (FK)** → `node[name] = { scalarChild: true, ... }` (fetch all scalar children of related type)
@@ -151,12 +190,13 @@ The real fields are populated by `get()` once column introspection completes. Th
 ## Step 10 — Column management helpers
 
 ```ts
-function addColumn(fieldName: string, position?: number)  // insert into columns_active, call get()
-function removeColumn(fieldName: string)                   // remove from columns_active, call get()
-function moveColumn(fromIndex: number, toIndex: number)    // reorder columns_active, call get()
-function availableColumns()                                // fields NOT in columns_active
-function getColumnMeta(fieldName: string)                  // look up full field metadata by name
+function enableColumn(field: any)    // field.on = true; get()  — or reuse enable() with "columns" mode
+function disableColumn(field: any)   // field.on = false; get()
+function moveColumn(from: number, to: number)  // reorder column_order, call get()
+function availableColumns()          // root type fields where .on === false
 ```
+
+`enableColumn` / `disableColumn` toggle `.on` on the field object directly (same objects in the `columns` store). If `enable()` is extended to support `"columns"` mode, `enableColumn` can just call `enable(field, "columns")`. For flat scalars no cascading is needed; for OBJECT/connection columns, `enable()` can cascade into the first child of the related type.
 
 ---
 
@@ -170,8 +210,9 @@ fields_query (auto)
        ├→ introspect(sortType, "sorts")           ├─ all parallel
        └→ resolveConnectionNodeType(returnType)   ─┘
             └→ introspectColumns(nodeType)
-                 └→ columns_active initialized
-                 └→ get()  ← rebuilds edges.node + recompiles query
+                 └→ set .on = true on scalar fields
+                 └→ initialize column_order
+                 └→ get()  ← rebuilds edges.node from orderedColumns
 ```
 
 ## Column Store Shape
@@ -181,25 +222,31 @@ columns.value = [
   {
     name: "ToolNode",
     fields: [
-      { name: "name",  resolvedTypeKind: "SCALAR",  isConnection: false },
-      { name: "brand", resolvedTypeKind: "OBJECT",  isConnection: false, resolvedTypeName: "BrandNode" },
+      { name: "name",  resolvedTypeKind: "SCALAR",  isConnection: false, on: true },
+      { name: "brand", resolvedTypeKind: "OBJECT",  isConnection: false, resolvedTypeName: "BrandNode", on: false },
       { name: "toolMetrics", resolvedTypeKind: "OBJECT", isConnection: true,
         nodeType: "ToolMetricNode",
         filterType: "ToolMetricNodeToolMetricFilterFilterInputType",
-        orderByType: "ToolMetricNodeToolMetricOrderOrderInputType" },
+        orderByType: "ToolMetricNodeToolMetricOrderOrderInputType",
+        on: false },
     ]
   },
   { name: "BrandNode", fields: [...] },
   { name: "ToolMetricNode", fields: [...] },
 ]
+
+// column_order mirrors sort_path_order:
+column_order.value = ["name", "weight", "price", ...]  // only .on fields, user-reorderable
 ```
 
 ## Verification
 
 1. Page load → network tab shows column introspection queries firing in parallel with filter/sort introspection
 2. `columns.value` populated with OBJECT types, connection fields flagged correctly
-3. `columns_active.value` initialized with scalar field names
-4. `q.query[ROOT].edges.node` rebuilt from active columns in `get()`
-5. Table renders dynamically (existing template already reads from `Object.keys(q.query[ROOT].edges.node)`)
-6. `addColumn` / `removeColumn` / `moveColumn` trigger `get()` and table updates
-7. Connection fields (e.g., `toolMetrics`) have `filterType` and `orderByType` stored for future lazy-loading
+3. Scalar fields have `.on = true` by default; `column_order` initialized with their names
+4. `orderedColumns` computed returns active fields in user's drag order
+5. `q.query[ROOT].edges.node` rebuilt from `orderedColumns` in `get()`
+6. Table renders dynamically (existing template already reads from `Object.keys(q.query[ROOT].edges.node)`)
+7. Toggling `.on` on a field + calling `get()` adds/removes it from the query and table
+8. Reordering `column_order` + calling `get()` changes column left-to-right display order
+9. Connection fields (e.g., `toolMetrics`) have `filterType` and `orderByType` stored for future lazy-loading

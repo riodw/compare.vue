@@ -36,7 +36,7 @@ import "./assets/main.scss";
 import "bootstrap";
 
 (async () => {
-  const base = PROD ? await resolveApiBase() : "http://127.0.0.1:8000";
+  const base = await resolveApiBase();
 
   const httpLink = createHttpLink({ uri: `${base}/graphql/` });
   // Cache implementation

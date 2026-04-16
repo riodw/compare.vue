@@ -47,6 +47,17 @@ const sort_path_order = ref<string[]>([]);       // user's drag-and-drop sort pr
 const drag_sort_idx = ref<number | null>(null);  // drag source row index
 const drag_over_sort_idx = ref<number | null>(null); // drag hover target row index
 
+// ---- Columns ----
+const column_root = ref("");              // root OBJECT type name (e.g. "ToolNode")
+const columns = ref<any[]>([]);           // flat store of introspected OBJECT types
+const column_order = ref<string[]>([]);   // user's drag-and-drop column order (field names)
+const search_columns = ref("");           // search text inside the "Add Column" dropdown
+const drag_col_idx = ref<number | null>(null);       // drag source column index
+const drag_over_col_idx = ref<number | null>(null);  // drag hover target column index
+
+// Connection envelope fields to strip during column introspection
+const CONNECTION_FIELDS = ["edges", "node", "pageInfo", "cursor", "count", "counts"];
+
 /** Recursively strip __typename fields injected by Apollo cache */
 const stripTypename = (obj: any): any => {
   if (Array.isArray(obj)) return obj.map(stripTypename);
@@ -94,6 +105,20 @@ const fields_query = {
             },
           },
         },
+        // Return type of each field — needed by column introspection to discover
+        // the ROOT field's Connection type and ultimately the node OBJECT type.
+        type: {
+          kind: true,
+          name: true,
+          ofType: {
+            kind: true,
+            name: true,
+            ofType: {
+              kind: true,
+              name: true,
+            },
+          },
+        },
       },
     },
   },
@@ -104,6 +129,20 @@ const {
   loading: q_l,
   error: q_e,
 } = useQuery(gql(jtg(fields_query)));
+
+/** Recursively peel NON_NULL and LIST wrappers to find the inner type name and kind. */
+function unwrapType(t: any): { varType: string; innerName: string; innerKind: string } {
+  if (!t) return { varType: "", innerName: "", innerKind: "" };
+  if (t.kind === "NON_NULL") {
+    const inner = unwrapType(t.ofType);
+    return { varType: inner.varType + "!", innerName: inner.innerName, innerKind: inner.innerKind };
+  }
+  if (t.kind === "LIST") {
+    const inner = unwrapType(t.ofType);
+    return { varType: `[${inner.varType}]`, innerName: inner.innerName, innerKind: inner.innerKind };
+  }
+  return { varType: t.name || "", innerName: t.name || "", innerKind: t.kind || "" };
+}
 
 // When the schema introspection returns, extract model fields, filter type, and sort type
 watch(q_r, (value) => {
@@ -130,27 +169,48 @@ watch(q_r, (value) => {
   }
 
   // Kick off recursive introspection of the orderBy INPUT_OBJECT tree.
-  // The orderBy arg is often wrapped in LIST/NON_NULL, so we recursively
-  // unwrap to recover both the full variable type string and the inner type name.
+  // The orderBy arg is often wrapped in LIST/NON_NULL, so unwrapType
+  // recovers both the full variable type string and the inner type name.
   const orderByArg = f.find((o: any) => o.name === "orderBy");
   if (orderByArg) {
-    function unwrapType(t: any): { varType: string; innerName: string } {
-      if (!t) return { varType: "", innerName: "" };
-      if (t.kind === "NON_NULL") {
-        const inner = unwrapType(t.ofType);
-        return { varType: inner.varType + "!", innerName: inner.innerName };
-      }
-      if (t.kind === "LIST") {
-        const inner = unwrapType(t.ofType);
-        return { varType: `[${inner.varType}]`, innerName: inner.innerName };
-      }
-      return { varType: t.name || "", innerName: t.name || "" };
-    }
     const { varType, innerName } = unwrapType(orderByArg.type);
     if (innerName) {
       sort_root.value = innerName;
       sort_var_type.value = varType;
       introspect(innerName, "sorts");
+    }
+  }
+
+  // Kick off column introspection — discover the return type of ROOT,
+  // resolve through the Connection envelope to find the node type, then walk it.
+  const rootField = value?.__type?.fields?.find((field: any) => field.name === ROOT);
+  if (rootField?.type) {
+    const { innerName: connectionName } = unwrapType(rootField.type);
+    if (connectionName) {
+      resolveConnectionNodeType(connectionName).then((nodeTypeName) => {
+        if (nodeTypeName) {
+          column_root.value = nodeTypeName;
+          introspectColumns(nodeTypeName).then(() => {
+            // Default: turn on all scalar fields of the root node type
+            const rootType = columns.value.find((c: any) => c.name === nodeTypeName);
+            if (rootType?.fields) {
+              rootType.fields.forEach((f: any) => {
+                if (f.resolvedTypeKind === "SCALAR") f.on = true;
+                // Default displayField for FK columns to the first scalar child
+                if (f.resolvedTypeKind === "OBJECT" && !f.isConnection && f.resolvedTypeName) {
+                  const related = columns.value.find((c: any) => c.name === f.resolvedTypeName);
+                  const firstScalar = related?.fields?.find((rf: any) => rf.resolvedTypeKind === "SCALAR");
+                  if (firstScalar) f.displayField = firstScalar.name;
+                }
+              });
+              column_order.value = rootType.fields
+                .filter((f: any) => f.on)
+                .map((f: any) => f.name);
+            }
+            get();
+          });
+        }
+      });
     }
   }
 });
@@ -172,6 +232,49 @@ const input_query = {
           ofType: {
             kind: true,
             name: true,
+          },
+        },
+      },
+    },
+  },
+};
+
+// Introspection query for OBJECT types — fetches fields (not inputFields) and
+// includes args on each field to discover filter/orderBy types on connections.
+const columns_query = {
+  query: {
+    __variables: { name: "String!" },
+    __type: {
+      __args: { name: new VariableType("name") },
+      name: true,
+      kind: true,
+      fields: {
+        name: true,
+        args: {
+          name: true,
+          type: {
+            kind: true,
+            name: true,
+            ofType: {
+              kind: true,
+              name: true,
+              ofType: {
+                kind: true,
+                name: true,
+              },
+            },
+          },
+        },
+        type: {
+          kind: true,
+          name: true,
+          ofType: {
+            kind: true,
+            name: true,
+            ofType: {
+              kind: true,
+              name: true,
+            },
           },
         },
       },
@@ -223,6 +326,123 @@ async function introspect(typeName: string, mode: "filters" | "sorts") {
     inf.inputFields
       .filter((o: any) => o.type.kind === "INPUT_OBJECT")
       .map((o: any) => introspect(o.type.name, mode))
+  );
+}
+
+/**
+ * Resolve a Relay Connection type to its inner node type name.
+ * Follows: ConnectionType → edges field → EdgeType → node field → NodeType
+ */
+async function resolveConnectionNodeType(connectionTypeName: string): Promise<string | null> {
+  const client = resolveClient();
+
+  // Step 1: Introspect the Connection type to find its "edges" field
+  const { data } = await client.query({
+    query: gql(jtg(columns_query)),
+    variables: { name: connectionTypeName },
+    fetchPolicy: "cache-first",
+  });
+  if (!data?.__type?.fields) return null;
+
+  const edgesField = stripTypename(data.__type.fields).find((f: any) => f.name === "edges");
+  if (!edgesField) return null;
+
+  // Step 2: Introspect the Edge type to find its "node" field
+  const edgesTypeName = unwrapType(edgesField.type).innerName;
+  if (!edgesTypeName) return null;
+
+  const { data: edgeData } = await client.query({
+    query: gql(jtg(columns_query)),
+    variables: { name: edgesTypeName },
+    fetchPolicy: "cache-first",
+  });
+  if (!edgeData?.__type?.fields) return null;
+
+  // Step 3: Return the node's inner type name (e.g. "ToolMetricNode")
+  const nodeField = stripTypename(edgeData.__type.fields).find((f: any) => f.name === "node");
+  if (!nodeField) return null;
+
+  return unwrapType(nodeField.type).innerName;
+}
+
+/**
+ * Walk an OBJECT type graph, storing each type in `columns`.
+ * Detects Relay connection patterns and unwraps them transparently.
+ * Stores filterType/orderByType from each connection field's args.
+ * Uses a visited set to prevent infinite loops on circular type references.
+ */
+async function introspectColumns(typeName: string, visited = new Set<string>()) {
+  if (visited.has(typeName)) return;
+  visited.add(typeName);
+
+  const client = resolveClient();
+
+  const { data } = await client.query({
+    query: gql(jtg(columns_query)),
+    variables: { name: typeName },
+    fetchPolicy: "cache-first",
+  });
+
+  if (!data?.__type?.fields) return;
+
+  let typeObj = stripTypename(data.__type);
+
+  // Strip connection envelope fields
+  typeObj.fields = typeObj.fields.filter(
+    (f: any) => !CONNECTION_FIELDS.includes(f.name)
+  );
+
+  // Process each field: resolve types, detect connections, extract metadata
+  for (const field of typeObj.fields) {
+    const { innerName, innerKind } = unwrapType(field.type);
+    field.resolvedTypeName = innerName;
+    field.resolvedTypeKind = innerKind;
+
+    field.isConnection = false;
+    field.nodeType = null;
+    field.filterType = null;
+    field.orderByType = null;
+    field.displayMode = "collapsed";
+    field.pivotField = null;
+    field.valueField = null;
+    field.displayField = null; // for FK OBJECTs: which sub-field to show (e.g. "name")
+
+    // Connection detection: if the resolved type ends with "Connection",
+    // this is a backward/many relationship using Relay's connection pattern.
+    // Extract filter/orderBy types from the field's args for future lazy-loading,
+    // and resolve the inner node type so the user sees the real type, not the envelope.
+    if (innerKind === "OBJECT" && innerName?.endsWith("Connection")) {
+      field.isConnection = true;
+
+      // Extract filter INPUT_OBJECT type name from args (e.g. "ToolMetricNodeToolMetricFilterFilterInputType")
+      const filterArg = field.args?.find((a: any) => a.name === "filter");
+      if (filterArg) field.filterType = unwrapType(filterArg.type).innerName;
+
+      // Extract orderBy INPUT_OBJECT type name from args
+      const orderByArg = field.args?.find((a: any) => a.name === "orderBy");
+      if (orderByArg) field.orderByType = unwrapType(orderByArg.type).innerName;
+
+      // Resolve Connection → Edge → Node to get the actual node type name
+      const nodeTypeName = await resolveConnectionNodeType(innerName);
+      if (nodeTypeName) field.nodeType = nodeTypeName;
+    }
+
+    field.on = false; // all fields start inactive; watcher initializes defaults
+  }
+
+  // Upsert into the flat store
+  const existingIndex = columns.value.findIndex((c: any) => c.name === typeObj.name);
+  if (existingIndex !== -1) Object.assign(columns.value[existingIndex], typeObj);
+  else columns.value.push(typeObj);
+
+  // Recurse into OBJECT children in parallel
+  await Promise.all(
+    typeObj.fields
+      .filter((f: any) => f.resolvedTypeKind === "OBJECT")
+      .map((f: any) => {
+        const target = f.isConnection ? f.nodeType : f.resolvedTypeName;
+        return target ? introspectColumns(target, visited) : Promise.resolve();
+      })
   );
 }
 
@@ -494,6 +714,90 @@ function onSortDrop(idx: number) {
 }
 
 // ================================================================
+// 2c. COLUMN ORDERING LOGIC
+//     Mirrors sort ordering: .on determines active, column_order
+//     determines left-to-right display order.
+// ================================================================
+
+/** Collect active columns from the root node type (fields with .on === true) */
+const activeColumns = computed(() => {
+  const rootType = columns.value.find((c: any) => c.name === column_root.value);
+  if (!rootType?.fields) return [];
+  return rootType.fields.filter((f: any) => f.on);
+});
+
+/** Reorder active columns per user's drag order */
+const orderedColumns = computed(() => {
+  const cols = activeColumns.value;
+  const order = column_order.value;
+  const byName = new Map(cols.map((c: any) => [c.name, c]));
+  const result: any[] = [];
+  for (const name of order) {
+    const c = byName.get(name);
+    if (c) { result.push(c); byName.delete(name); }
+  }
+  for (const c of byName.values()) result.push(c);
+  return result;
+});
+
+/** Keep column_order in sync when columns toggle on/off */
+watch(activeColumns, (cols) => {
+  const currentNames = new Set(cols.map((c: any) => c.name));
+  column_order.value = column_order.value.filter((n) => currentNames.has(n));
+  for (const c of cols) {
+    if (!column_order.value.includes(c.name)) column_order.value.push(c.name);
+  }
+});
+
+/** Enable a column and trigger a refetch */
+function enableColumn(field: any) {
+  field.on = true;
+  get();
+}
+
+/** Disable a column and trigger a refetch */
+function disableColumn(field: any) {
+  field.on = false;
+  get();
+}
+
+/** Move a column from one position to another (drag-and-drop reordering) */
+function moveColumn(fromIndex: number, toIndex: number) {
+  if (fromIndex === toIndex) return;
+  const order = [...column_order.value];
+  const [moved] = order.splice(fromIndex, 1);
+  order.splice(toIndex, 0, moved);
+  column_order.value = order;
+  get();
+}
+
+/** Get all available (non-active) columns for the "Add Column" dropdown, filtered by search */
+function availableColumns() {
+  const rootType = columns.value.find((c: any) => c.name === column_root.value);
+  if (!rootType?.fields) return [];
+  const searchStr = search_columns.value.toLowerCase();
+  return rootType.fields.filter(
+    (f: any) => !f.on && f.name.toLowerCase().includes(searchStr)
+  );
+}
+
+/** Get the scalar sub-fields of an FK column's related type (for the display field dropdown) */
+function getSubFields(col: any) {
+  const related = columns.value.find((c: any) => c.name === col.resolvedTypeName);
+  if (!related?.fields) return [];
+  return related.fields.filter((f: any) => f.resolvedTypeKind === "SCALAR");
+}
+
+/** Handle dropping a column onto a new position */
+function onColumnDrop(idx: number) {
+  const from = drag_col_idx.value;
+  if (from === null || from === idx) return;
+  moveColumn(from, idx);
+  drag_col_idx.value = null;
+  drag_over_col_idx.value = null;
+}
+
+// ================================================================
 // 3. MAIN LIVE DATA QUERY
 //    Rebuilds the GraphQL document and variables from the current
 //    filter/sort state, then triggers a reactive refetch.
@@ -510,16 +814,7 @@ const q = {
         offset: new VariableType("offset"),
       } as any,
       edges: {
-        node: {
-          name: true,
-          weight: true,
-          price: true,
-          noiseLevel: true,
-          modelNumber: true,
-          isRedacted: true,
-          id: true,
-          description: true,
-        },
+        node: { id: true } as any, // rebuilt dynamically by get() from orderedColumns
       },
       count: true,
       counts: true,
@@ -538,12 +833,41 @@ const {
 } = useQuery(queryDoc, queryVariables);
 
 /**
- * Rebuild and execute the query from the current filter + sort UI state.
- * Walks active paths to construct deeply nested filter/sort payloads,
- * then recompiles the GraphQL document and swaps variables to trigger Apollo's reactive refetch.
+ * Rebuild and execute the query from the current column, filter, and sort UI state.
+ * 1. Rebuilds edges.node from orderedColumns (scalar/FK/connection field selection)
+ * 2. Walks active filter/sort paths to construct deeply nested payloads
+ * 3. Recompiles the GraphQL document and swaps variables to trigger Apollo's reactive refetch
  */
 function get() {
   paginationOffset.value = 0;
+
+  // --- Rebuild edges.node from active columns ---
+  if (orderedColumns.value.length > 0) {
+    const newNode: any = {};
+    orderedColumns.value.forEach((col: any) => {
+      if (col.resolvedTypeKind === "SCALAR") {
+        newNode[col.name] = true;
+      } else if (col.isConnection && col.nodeType) {
+        // Connection: inject edges/node envelope, fetch scalar children of node type
+        const nodeType = columns.value.find((c: any) => c.name === col.nodeType);
+        const innerNode: any = {};
+        if (nodeType?.fields) {
+          nodeType.fields
+            .filter((f: any) => f.resolvedTypeKind === "SCALAR")
+            .forEach((f: any) => { innerNode[f.name] = true; });
+        }
+        newNode[col.name] = { edges: { node: Object.keys(innerNode).length ? innerNode : { id: true } } };
+      } else if (col.resolvedTypeKind === "OBJECT" && col.resolvedTypeName) {
+        // Forward FK: fetch only the selected displayField
+        if (col.displayField) {
+          newNode[col.name] = { [col.displayField]: true };
+        } else {
+          newNode[col.name] = { id: true }; // fallback
+        }
+      }
+    });
+    q.query[ROOT].edges.node = newNode;
+  }
 
   q.query.__variables = {};
   q.query[ROOT].__args = {};
@@ -1039,6 +1363,144 @@ function goToPage(n: number) {
             </div>
           </li>
 
+          <!-- Columns panel: add/remove/reorder visible table columns -->
+          <li class="list-group-item">
+            <div
+              class="d-flex align-items-center justify-content-between mb-2"
+            >
+              <h5 class="m-0">
+                <b>{{ orderedColumns.length }} Columns</b>
+              </h5>
+              <div class="dropdown">
+                <button
+                  class="btn btn-primary btn-sm"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                  :disabled="!!(q_l || q_e)"
+                  @click="
+                    search_columns = '';
+                    nextTick(() =>
+                      $event.currentTarget.nextElementSibling
+                        ?.querySelector('input')
+                        ?.focus()
+                    );
+                  "
+                >
+                  <i class="bi bi-plus-lg"></i>
+                  Column
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li class="mx-2 mb-1">
+                    <input
+                      v-model="search_columns"
+                      class="form-control py-1"
+                      type="text"
+                      :placeholder="availableColumns().length + ' Columns...'"
+                    />
+                  </li>
+                  <li v-for="f in availableColumns()" :key="f.name">
+                    <button
+                      class="dropdown-item text-capitalize"
+                      @click="enableColumn(f)"
+                    >
+                      {{ camel(f.name) }}
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Column rows: each row is a draggable column entry -->
+            <div
+              v-if="orderedColumns.length"
+              class="border-top pt-2 mt-2 overflow-x-auto"
+            >
+              <table cellpadding="0" cellspacing="0">
+                <tbody>
+                  <tr
+                    v-for="(col, rIdx) in orderedColumns"
+                    :key="'col-row-' + rIdx"
+                    draggable="true"
+                    @dragstart="drag_col_idx = rIdx"
+                    @dragover.prevent="drag_over_col_idx = rIdx"
+                    @dragleave="drag_over_col_idx = null"
+                    @drop="onColumnDrop(rIdx)"
+                    @dragend="
+                      drag_col_idx = null;
+                      drag_over_col_idx = null;
+                    "
+                    :style="{
+                      opacity: drag_col_idx === rIdx ? 0.3 : 1,
+                    }"
+                    :class="{
+                      'sort-drop-target':
+                        drag_over_col_idx === rIdx &&
+                        drag_col_idx !== null &&
+                        drag_col_idx !== rIdx,
+                    }"
+                    style="cursor: grab"
+                  >
+                    <!-- Drag handle -->
+                    <td
+                      class="pe-0 d-print-none"
+                      style="height: 1px; width: 1px"
+                    >
+                      <div
+                        class="d-flex align-items-center justify-content-center h-100 text-muted"
+                        style="min-height: 31px"
+                      >
+                        <i class="bi bi-grip-vertical"></i>
+                      </div>
+                    </td>
+                    <!-- Column name -->
+                    <td style="height: 1px">
+                      <button
+                        class="btn btn-outline-primary btn-sm text-capitalize w-100 rounded-start-pill px-3 h-100"
+                        style="min-height: 31px"
+                        disabled
+                      >
+                        {{ camel(col.name) }}
+                      </button>
+                    </td>
+                    <!-- Sub-field selector: only shown for FK columns -->
+                    <td
+                      v-if="col.resolvedTypeKind === 'OBJECT' && !col.isConnection"
+                      style="height: 1px"
+                    >
+                      <select
+                        :value="col.displayField"
+                        @change="
+                          col.displayField = ($event.target as HTMLSelectElement).value;
+                          get();
+                        "
+                        class="btn btn-outline-secondary btn-sm text-capitalize border-secondary text-center rounded-0 h-100 w-100"
+                        style="min-height: 31px"
+                      >
+                        <option
+                          v-for="sub in getSubFields(col)"
+                          :key="sub.name"
+                          :value="sub.name"
+                        >
+                          {{ camel(sub.name) }}
+                        </option>
+                      </select>
+                    </td>
+                    <!-- Delete: removes this column -->
+                    <td>
+                      <button
+                        class="btn btn-outline-danger btn-sm rounded-end-pill d-print-none"
+                        style="height: 100%; min-height: 31px"
+                        @click="disableColumn(col)"
+                      >
+                        <i class="bi bi-trash3"></i>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </li>
+
           <!-- Show/Hide -->
           <li
             class="list-group-item d-flex align-items-center justify-content-center text-center p-0 d-print-none"
@@ -1057,7 +1519,7 @@ function goToPage(n: number) {
             class="list-group-item d-flex align-items-center justify-content-between"
           >
             <b>{{ activeFilterPaths.length }} Filters</b>
-            <b>{{ activeSortPaths.length }} Columns</b>
+            <b>{{ orderedColumns.length }} Columns</b>
             <b>{{ activeSortPaths.length }} Sorts</b>
           </li>
           <li
@@ -1085,21 +1547,34 @@ function goToPage(n: number) {
             <thead>
               <tr class="table-secondary">
                 <th
-                  v-for="key in Object.keys(q.query[ROOT].edges.node)"
-                  :key="key"
+                  v-for="col in orderedColumns"
+                  :key="col.name"
                   class="text-capitalize"
                 >
-                  {{ camel(key) }}
+                  {{ camel(col.name) }}{{ col.displayField ? ' > ' + camel(col.displayField) : '' }}
                 </th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="h in a_r?.[ROOT]?.edges" :key="h.node.id">
                 <td
-                  v-for="key in Object.keys(q.query[ROOT].edges.node)"
-                  :key="key"
+                  v-for="col in orderedColumns"
+                  :key="col.name"
                 >
-                  {{ h.node[key] }}
+                  <!-- Scalar: render value directly -->
+                  <template v-if="col.resolvedTypeKind === 'SCALAR'">
+                    {{ h.node[col.name] }}
+                  </template>
+                  <!-- FK (forward relation): render the selected displayField -->
+                  <template v-else-if="col.resolvedTypeKind === 'OBJECT' && !col.isConnection">
+                    {{ h.node[col.name]?.[col.displayField] }}
+                  </template>
+                  <!-- Connection (backward relation): collapsed mode — loop over edges -->
+                  <template v-else-if="col.isConnection">
+                    <div v-for="(edge, i) in h.node[col.name]?.edges" :key="i">
+                      {{ Object.values(edge.node || {}).map(v => typeof v === 'object' ? Object.values(v).join(': ') : v).join(', ') }}
+                    </div>
+                  </template>
                 </td>
               </tr>
             </tbody>

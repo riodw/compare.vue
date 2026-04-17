@@ -4,7 +4,7 @@ import {
   jsonToGraphQLQuery as jtg,
   VariableType,
 } from "json-to-graphql-query";
-import { ref, watch, computed, nextTick } from "vue";
+import { ref, watch, computed, nextTick, type Ref } from "vue";
 import { useApolloClient } from "@vue/apollo-composable";
 
 // The GraphQL root query field name — change this to point at a different model
@@ -41,17 +41,22 @@ const sort_var_type = ref("");       // full GraphQL variable type string e.g. "
 const sorts = ref<any[]>([]);        // flat store of all introspected sort INPUT_OBJECT types
 const search_sorts = ref("");        // search text inside the "Add Sort" dropdown
 const sort_path_order = ref<string[]>([]);       // user's drag-and-drop sort priority (path keys)
-// TODO(DRY #2): drag_* refs (here and in Columns block below) + onSortDrop/onColumnDrop → one makeDragReorder(orderRef, onChange) factory. OK.
-const drag_sort_idx = ref<number | null>(null);  // drag source row index
-const drag_over_sort_idx = ref<number | null>(null); // drag hover target row index
+const {
+  dragIdx: drag_sort_idx,
+  dragOverIdx: drag_over_sort_idx,
+  onDrop: onSortDrop,
+} = makeDragReorder(sort_path_order, get);
 
 // ---- Columns ----
 const column_root = ref("");              // root OBJECT type name (e.g. "ToolNode")
 const columns = ref<any[]>([]);           // flat store of introspected OBJECT types
 const column_order = ref<string[]>([]);   // user's drag-and-drop column order (field names)
 const search_columns = ref("");           // search text inside the "Add Column" dropdown
-const drag_col_idx = ref<number | null>(null);       // drag source column index
-const drag_over_col_idx = ref<number | null>(null);  // drag hover target column index
+const {
+  dragIdx: drag_col_idx,
+  dragOverIdx: drag_over_col_idx,
+  onDrop: onColumnDrop,
+} = makeDragReorder(column_order, get);
 
 // Connection envelope fields to strip during column introspection
 const CONNECTION_FIELDS = ["edges", "node", "pageInfo", "cursor", "count", "counts"];
@@ -66,6 +71,54 @@ const stripTypename = (obj: any): any => {
   }
   return obj;
 };
+
+/** Reorder items by keyFn against an order array; items whose keys aren't in order are appended. */
+function applyOrder<T>(items: T[], order: string[], keyFn: (x: T) => string): T[] {
+  const byKey = new Map(items.map((x) => [keyFn(x), x]));
+  const result: T[] = [];
+  for (const key of order) {
+    const x = byKey.get(key);
+    if (x) { result.push(x); byKey.delete(key); }
+  }
+  for (const x of byKey.values()) result.push(x);
+  return result;
+}
+
+/** Keep orderRef in sync with items: drop stale keys, append any new ones. */
+function syncOrder<T>(items: T[], orderRef: Ref<string[]>, keyFn: (x: T) => string) {
+  const currentKeys = new Set(items.map(keyFn));
+  orderRef.value = orderRef.value.filter((k) => currentKeys.has(k));
+  for (const item of items) {
+    const key = keyFn(item);
+    if (!orderRef.value.includes(key)) orderRef.value.push(key);
+  }
+}
+
+/** Focus the search input inside a dropdown menu sibling of the trigger button, once Vue flushes. */
+function focusDropdownInput(ev: Event) {
+  const trigger = ev.currentTarget as HTMLElement | null;
+  nextTick(() =>
+    trigger?.nextElementSibling?.querySelector<HTMLInputElement>("input")?.focus()
+  );
+}
+
+/** Drag-and-drop reorder state + onDrop handler for a list whose order lives in `orderRef`. */
+function makeDragReorder(orderRef: Ref<string[]>, onChange?: () => void) {
+  const dragIdx = ref<number | null>(null);
+  const dragOverIdx = ref<number | null>(null);
+  function onDrop(idx: number) {
+    const from = dragIdx.value;
+    if (from === null || from === idx) return;
+    const order = [...orderRef.value];
+    const [moved] = order.splice(from, 1);
+    if (moved !== undefined) order.splice(idx, 0, moved);
+    orderRef.value = order;
+    dragIdx.value = null;
+    dragOverIdx.value = null;
+    onChange?.();
+  }
+  return { dragIdx, dragOverIdx, onDrop };
+}
 
 // ================================================================
 // 1. DYNAMIC GRAPHQL SCHEMA INTROSPECTION
@@ -142,139 +195,120 @@ function unwrapType(t: any): { varType: string; innerName: string; innerKind: st
   return { varType: t.name || "", innerName: t.name || "", innerKind: t.kind || "" };
 }
 
-// When the schema introspection returns, discover the filter, sort, and column types
-// TODO(DRY #7): split boot into initFiltersFrom/initSortsFrom/initColumnsFrom helpers to make "columns must finish before get()" sequencing explicit. OK, no behavior change.
+/** Kick off filter-tree introspection from the ROOT query's `filter` arg. Fire-and-forget. */
+function initFiltersFrom(args: any[]) {
+  const filterArg = args.find((o: any) => o.name === "filter");
+  if (!filterArg?.type?.name) return;
+  filter_root.value = filterArg.type.name;
+  introspect(filterArg.type.name, "filters");
+}
+
+/** Kick off sort-tree introspection from the ROOT query's `orderBy` arg. Fire-and-forget. */
+function initSortsFrom(args: any[]) {
+  const orderByArg = args.find((o: any) => o.name === "orderBy");
+  if (!orderByArg) return;
+  const { varType, innerName } = unwrapType(orderByArg.type);
+  if (!innerName) return;
+  sort_root.value = innerName;
+  sort_var_type.value = varType;
+  introspect(innerName, "sorts");
+}
+
+/**
+ * Resolve ROOT's Connection node type and introspect its object graph, then
+ * enable default columns (all scalars + first scalar of each forward FK) and run
+ * the initial data query. Awaited so `get()` fires with columns populated.
+ */
+async function initColumnsFrom(rootField: any) {
+  if (!rootField?.type) return;
+  const { innerName: connectionName } = unwrapType(rootField.type);
+  if (!connectionName) return;
+  const nodeTypeName = await resolveConnectionNodeType(connectionName);
+  if (!nodeTypeName) return;
+  column_root.value = nodeTypeName;
+  await introspectColumns(nodeTypeName);
+
+  // Default: turn on all scalar fields of the root node type
+  const rootType = columns.value.find((c: any) => c.name === nodeTypeName);
+  if (rootType?.fields) {
+    for (const field of rootType.fields) {
+      if (field.resolvedTypeKind === "SCALAR") field.on = true;
+      // Default displayField for FK columns to the first scalar child
+      if (field.resolvedTypeKind === "OBJECT" && !field.isConnection && field.resolvedTypeName) {
+        const related = columns.value.find((c: any) => c.name === field.resolvedTypeName);
+        const firstScalar = related?.fields?.find((rf: any) => rf.resolvedTypeKind === "SCALAR");
+        if (firstScalar) field.displayField = firstScalar.name;
+      }
+    }
+    column_order.value = rootType.fields
+      .filter((f: any) => f.on)
+      .map((f: any) => f.name);
+  }
+  get();
+}
+
+// When the schema introspection returns, discover the filter, sort, and column types.
+// Filters and sorts are fire-and-forget; columns must finish before get() so the initial
+// query has an accurate edges.node selection.
 watch(q_r, (value) => {
-  let f;
+  let args: any[];
   try {
-    f = value?.__type?.fields?.find((field: any) => field.name === ROOT)?.args;
+    args = value?.__type?.fields?.find((field: any) => field.name === ROOT)?.args;
   } catch (error) {
     console.error(error);
+    return;
   }
+  args = stripTypename(args) || [];
 
-  f = stripTypename(f) || [];
+  initFiltersFrom(args);
+  initSortsFrom(args);
 
-  // Kick off recursive introspection of the filter INPUT_OBJECT tree
-  const filterArg = f.find((o: any) => o.name === "filter");
-  if (filterArg?.type?.name) {
-    filter_root.value = filterArg.type.name;
-    introspect(filterArg.type.name, "filters");
-  }
-
-  // Kick off recursive introspection of the orderBy INPUT_OBJECT tree.
-  // The orderBy arg is often wrapped in LIST/NON_NULL, so unwrapType
-  // recovers both the full variable type string and the inner type name.
-  const orderByArg = f.find((o: any) => o.name === "orderBy");
-  if (orderByArg) {
-    const { varType, innerName } = unwrapType(orderByArg.type);
-    if (innerName) {
-      sort_root.value = innerName;
-      sort_var_type.value = varType;
-      introspect(innerName, "sorts");
-    }
-  }
-
-  // Kick off column introspection — discover the return type of ROOT,
-  // resolve through the Connection envelope to find the node type, then walk it.
   const rootField = value?.__type?.fields?.find((field: any) => field.name === ROOT);
-  if (rootField?.type) {
-    const { innerName: connectionName } = unwrapType(rootField.type);
-    if (connectionName) {
-      resolveConnectionNodeType(connectionName).then((nodeTypeName) => {
-        if (nodeTypeName) {
-          column_root.value = nodeTypeName;
-          introspectColumns(nodeTypeName).then(() => {
-            // Default: turn on all scalar fields of the root node type
-            const rootType = columns.value.find((c: any) => c.name === nodeTypeName);
-            if (rootType?.fields) {
-              rootType.fields.forEach((f: any) => {
-                if (f.resolvedTypeKind === "SCALAR") f.on = true;
-                // Default displayField for FK columns to the first scalar child
-                if (f.resolvedTypeKind === "OBJECT" && !f.isConnection && f.resolvedTypeName) {
-                  const related = columns.value.find((c: any) => c.name === f.resolvedTypeName);
-                  const firstScalar = related?.fields?.find((rf: any) => rf.resolvedTypeKind === "SCALAR");
-                  if (firstScalar) f.displayField = firstScalar.name;
-                }
-              });
-              column_order.value = rootType.fields
-                .filter((f: any) => f.on)
-                .map((f: any) => f.name);
-            }
-            get();
-          });
-        }
-      });
-    }
-  }
+  initColumnsFrom(rootField);
 });
+
+// Shared type-ref fragments for introspection queries.
+// typeRef2 covers LIST(NON_NULL(Type)) — enough for INPUT_OBJECT field types.
+// typeRef3 adds one more level of nesting for NON_NULL(LIST(NON_NULL(Type))) — used by OBJECT fields/args.
+const typeRef2 = { kind: true, name: true, ofType: { kind: true, name: true } };
+const typeRef3 = { kind: true, name: true, ofType: typeRef2 };
+
+/** Build an introspection query envelope for `__type(name: $name)` with a custom selection set. */
+function makeTypeQuery(selection: any) {
+  return {
+    query: {
+      __variables: { name: "String!" },
+      __type: {
+        __args: { name: new VariableType("name") },
+        name: true,
+        kind: true,
+        ...selection,
+      },
+    },
+  };
+}
 
 // Reusable introspection query — fetches inputFields for any named INPUT_OBJECT type.
 // Used by introspect() via separate lazy query instances for filters and sorts.
-// TODO(DRY #9): shares __variables/__type envelope and 3-deep ofType nesting with columns_query below — extract ofTypeFragment (or buildIntrospectionQuery). OK.
-const input_query = {
-  query: {
-    __variables: { name: "String!" },
-    __type: {
-      __args: { name: new VariableType("name") },
-      name: true,
-      kind: true,
-      inputFields: {
-        name: true,
-        type: {
-          kind: true,
-          name: true,
-          ofType: {
-            kind: true,
-            name: true,
-          },
-        },
-      },
-    },
+const input_query = makeTypeQuery({
+  inputFields: {
+    name: true,
+    type: typeRef2,
   },
-};
+});
 
 // Introspection query for OBJECT types — fetches fields (not inputFields) and
 // includes args on each field to discover filter/orderBy types on connections.
-const columns_query = {
-  query: {
-    __variables: { name: "String!" },
-    __type: {
-      __args: { name: new VariableType("name") },
+const columns_query = makeTypeQuery({
+  fields: {
+    name: true,
+    args: {
       name: true,
-      kind: true,
-      fields: {
-        name: true,
-        args: {
-          name: true,
-          type: {
-            kind: true,
-            name: true,
-            ofType: {
-              kind: true,
-              name: true,
-              ofType: {
-                kind: true,
-                name: true,
-              },
-            },
-          },
-        },
-        type: {
-          kind: true,
-          name: true,
-          ofType: {
-            kind: true,
-            name: true,
-            ofType: {
-              kind: true,
-              name: true,
-            },
-          },
-        },
-      },
+      type: typeRef3,
     },
+    type: typeRef3,
   },
-};
+});
 
 const { resolveClient } = useApolloClient();
 
@@ -432,21 +466,29 @@ async function introspectColumns(typeName: string, visited = new Set<string>()) 
 //    and laying them out as a grid with merged rowspans.
 // ================================================================
 
-// TODO(DRY #5): enable/topLevel/searchFieldsFn/activePaths/addNext all do { filters, sorts }[mode] lookup — collapse via a MODES registry (declare after filter_root/sort_root/filters/sorts refs). OK.
+// Registry of the two path-based UI modes (filter tree vs. sort tree).
+// Each mode has a flat type store, a root type-name ref, and a dropdown search ref.
+// Collapses the repeated `{ filters, sorts }[mode]` dispatch in enable/topLevel/searchFieldsFn/activePaths/addNext.
+const MODES = {
+  filters: { store: filters, root: filter_root, search: search_fields },
+  sorts: { store: sorts, root: sort_root, search: search_sorts },
+};
+type Mode = keyof typeof MODES;
+
 /**
  * Toggle a field on and cascade-open the first child at each level.
  * "filters" = filter mode (recurses into any named type).
  * "sorts" = order mode (only recurses into INPUT_OBJECT; leaf defaults to "ASC").
  * Only mutates state — callers in the template call get() explicitly when user input warrants a refetch.
  */
-function enable(inputField: any, mode: "filters" | "sorts") {
+function enable(inputField: any, mode: Mode) {
   inputField.on = true;
 
   if (mode === "sorts" && inputField.type?.kind !== "INPUT_OBJECT") {
     // Sort leaf (ENUM direction) — default to ascending
     if (!inputField.value) inputField.value = "ASC";
   } else if (inputField.type?.name) {
-    const obj = { filters, sorts }[mode].value.find(
+    const obj = MODES[mode].store.value.find(
       (f: any) => f.name === inputField.type.name
     );
     if (obj) {
@@ -463,24 +505,47 @@ function camel(s: string) {
   return s.replace(/([A-Z])/g, " $1").trim();
 }
 
-/** Get the root-level inputFields for a given mode's "Add" dropdown */
-function topLevel(mode: "filters" | "sorts") {
-  const root = { filters: filter_root, sorts: sort_root }[mode];
-  return (
-    { filters, sorts }[mode].value.find((o: any) => o.name === root.value)
-      ?.inputFields || []
+/** HTML input type for a GraphQL scalar field type — numeric types use number inputs. */
+function inputTypeFor(fieldType: string): "number" | "text" {
+  return ["Int", "Decimal", "Float"].includes(fieldType) ? "number" : "text";
+}
+
+/** Render a scalar or forward-FK column as a single string; empty string if missing. */
+function cellText(col: any, row: any): string {
+  if (col.resolvedTypeKind === "SCALAR") return row[col.name] ?? "";
+  if (col.resolvedTypeKind === "OBJECT" && !col.isConnection) {
+    return row[col.name]?.[col.displayField] ?? "";
+  }
+  return "";
+}
+
+/** Render a connection column as one line per edge — each line is a comma-joined flattening of the edge's node values. */
+function cellConnectionLines(col: any, row: any): string[] {
+  const edges: any[] = row[col.name]?.edges || [];
+  return edges.map((edge: any) =>
+    Object.values(edge.node || {})
+      .map((v) => (typeof v === "object" ? Object.values(v as any).join(": ") : v))
+      .join(", ")
   );
 }
 
-// TODO(DRY #4): merge with availableColumns() below into one filterAvailable(items, searchStr) helper. OK.
-/** Filter the dropdown items by the search text, excluding already-active fields */
-function searchFieldsFn(mode: "filters" | "sorts") {
-  const searchStr = { filters: search_fields, sorts: search_sorts }[
-    mode
-  ].value.toLowerCase();
-  return topLevel(mode).filter(
-    (arg: any) => arg.name.toLowerCase().includes(searchStr) && !arg.on
+/** Get the root-level inputFields for a given mode's "Add" dropdown */
+function topLevel(mode: Mode) {
+  const { store, root } = MODES[mode];
+  return (
+    store.value.find((o: any) => o.name === root.value)?.inputFields || []
   );
+}
+
+/** Filter a list of {name, on} items to those not active whose name matches search. */
+function filterAvailable(items: any[], searchStr: string) {
+  const q = searchStr.toLowerCase();
+  return items.filter((x: any) => !x.on && x.name.toLowerCase().includes(q));
+}
+
+/** Filter the dropdown items by the search text, excluding already-active fields */
+function searchFieldsFn(mode: Mode) {
+  return filterAvailable(topLevel(mode), MODES[mode].search.value);
 }
 
 /**
@@ -490,9 +555,8 @@ function searchFieldsFn(mode: "filters" | "sorts") {
  * "filters" = filter (leaf = SCALAR or known primitive).
  * "sorts"  = order  (leaf = anything that isn't INPUT_OBJECT, typically ENUM).
  */
-function activePaths(mode: "filters" | "sorts") {
-  const store = { filters, sorts }[mode];
-  const root = { filters: filter_root, sorts: sort_root }[mode];
+function activePaths(mode: Mode) {
+  const { store, root } = MODES[mode];
   const paths: any[][] = [];
   const rootObj = store.value.find((o: any) => o.name === root.value);
   if (!rootObj?.inputFields) return paths;
@@ -594,7 +658,7 @@ const filterGrid = computed(() => {
 });
 
 /** Swap the selected node at a given level to a different option (via select change) */
-function changeNode(level: any, event: Event, mode: "filters" | "sorts") {
+function changeNode(level: any, event: Event, mode: Mode) {
   const target = event.target as HTMLSelectElement;
   if (!target) return;
   const newOptionName = target.value;
@@ -607,9 +671,9 @@ function changeNode(level: any, event: Event, mode: "filters" | "sorts") {
 }
 
 /** Expand the next unused sibling field within a branch */
-function addNext(level: any, mode: "filters" | "sorts") {
+function addNext(level: any, mode: Mode) {
   if (!level.selected.type?.name) return;
-  const obj = { filters, sorts }[mode].value.find(
+  const obj = MODES[mode].store.value.find(
     (f: any) => f.name === level.selected.type.name
   );
   const nextField = obj?.inputFields?.find((f: any) => !f.on);
@@ -636,64 +700,33 @@ function sortPathKey(path: any[]) {
   return path.map((p) => p.selected.name).join(".");
 }
 
-// TODO(DRY #1): same map+append shape as orderedColumns + watchers below — extract applyOrder(items, order, keyFn) + syncOrder(activeItems, orderRef, keyFn). OK.
 /**
- * Reorder activeSortPaths according to the user's drag-and-drop ordering.
- * Paths present in sort_path_order come first (in that order), then any newly added paths.
+ * Walk a path [{selected: {name, value}}, ...] writing each segment's name as a key
+ * on `target`, descending at every non-leaf level and assigning the leaf's value at the bottom.
+ * Returns `target` if written to, or null if the leaf value is empty/undefined.
  */
-const orderedSortPaths = computed(() => {
-  const paths = activeSortPaths.value;
-  const order = sort_path_order.value;
-
-  // Build a map of key → path for quick lookup
-  const byKey = new Map<string, any[]>();
-  for (const p of paths) byKey.set(sortPathKey(p), p);
-
-  // Collect ordered paths: first those in sort_path_order, then any new ones
-  const result: any[][] = [];
-  for (const key of order) {
-    const p = byKey.get(key);
-    if (p) {
-      result.push(p);
-      byKey.delete(key);
+function buildNestedFromPath(path: any[], target: any = {}): any | null {
+  const leaf = path[path.length - 1]?.selected;
+  if (!leaf || leaf.value === "" || leaf.value === undefined) return null;
+  let cur = target;
+  for (let i = 0; i < path.length; i++) {
+    const node = path[i].selected;
+    if (i === path.length - 1) cur[node.name] = node.value;
+    else {
+      cur[node.name] ??= {};
+      cur = cur[node.name];
     }
   }
-  // Append any paths not yet in the order (newly added sorts)
-  for (const p of byKey.values()) result.push(p);
-
-  return result;
-});
-
-// Keep sort_path_order in sync when paths are added or removed
-watch(activeSortPaths, (paths) => {
-  const currentKeys = new Set(paths.map(sortPathKey));
-  // Remove stale keys, then append any new ones
-  sort_path_order.value = sort_path_order.value.filter((k) =>
-    currentKeys.has(k)
-  );
-  for (const p of paths) {
-    const key = sortPathKey(p);
-    if (!sort_path_order.value.includes(key)) sort_path_order.value.push(key);
-  }
-});
-
-/**
- * Handle dropping a sort row onto a new position.
- * Splices the dragged entry out of sort_path_order and re-inserts it at the target index.
- */
-function onSortDrop(idx: number) {
-  const from = drag_sort_idx.value;
-  if (from === null || from === idx) return;
-
-  const order = [...sort_path_order.value];
-  const [moved] = order.splice(from, 1);
-  order.splice(idx, 0, moved);
-  sort_path_order.value = order;
-
-  drag_sort_idx.value = null;
-  drag_over_sort_idx.value = null;
-  get();
+  return target;
 }
+
+/** Active sort paths reordered by the user's drag-and-drop priority. */
+const orderedSortPaths = computed(() =>
+  applyOrder(activeSortPaths.value, sort_path_order.value, sortPathKey)
+);
+
+// Keep sort_path_order in sync as paths are added or removed
+watch(activeSortPaths, (paths) => syncOrder(paths, sort_path_order, sortPathKey));
 
 // ================================================================
 // 2c. COLUMN ORDERING LOGIC
@@ -701,7 +734,6 @@ function onSortDrop(idx: number) {
 //     determines left-to-right display order.
 // ================================================================
 
-// TODO(DRY #6): capstone — filters/sorts/columns share active→ordered→drag→sync; extract makeListManager({ items, keyFn, ... }) factory. OK; do items 1–5 first. Also enables drag reorder for filters.
 /** Collect active columns from the root node type (fields with .on === true) */
 const activeColumns = computed(() => {
   const rootType = columns.value.find((c: any) => c.name === column_root.value);
@@ -709,28 +741,15 @@ const activeColumns = computed(() => {
   return rootType.fields.filter((f: any) => f.on);
 });
 
-/** Reorder active columns per user's drag order */
-const orderedColumns = computed(() => {
-  const cols = activeColumns.value;
-  const order = column_order.value;
-  const byName = new Map(cols.map((c: any) => [c.name, c]));
-  const result: any[] = [];
-  for (const name of order) {
-    const c = byName.get(name);
-    if (c) { result.push(c); byName.delete(name); }
-  }
-  for (const c of byName.values()) result.push(c);
-  return result;
-});
+const columnKey = (c: any) => c.name;
 
-/** Keep column_order in sync when columns toggle on/off */
-watch(activeColumns, (cols) => {
-  const currentNames = new Set(cols.map((c: any) => c.name));
-  column_order.value = column_order.value.filter((n) => currentNames.has(n));
-  for (const c of cols) {
-    if (!column_order.value.includes(c.name)) column_order.value.push(c.name);
-  }
-});
+/** Active columns reordered by the user's drag-and-drop order. */
+const orderedColumns = computed(() =>
+  applyOrder(activeColumns.value, column_order.value, columnKey)
+);
+
+// Keep column_order in sync as columns toggle on/off
+watch(activeColumns, (cols) => syncOrder(cols, column_order, columnKey));
 
 /** Enable a column and trigger a refetch */
 function enableColumn(field: any) {
@@ -744,24 +763,10 @@ function disableColumn(field: any) {
   get();
 }
 
-/** Move a column from one position to another (drag-and-drop reordering) */
-function moveColumn(fromIndex: number, toIndex: number) {
-  if (fromIndex === toIndex) return;
-  const order = [...column_order.value];
-  const [moved] = order.splice(fromIndex, 1);
-  order.splice(toIndex, 0, moved);
-  column_order.value = order;
-  get();
-}
-
 /** Get all available (non-active) columns for the "Add Column" dropdown, filtered by search */
 function availableColumns() {
   const rootType = columns.value.find((c: any) => c.name === column_root.value);
-  if (!rootType?.fields) return [];
-  const searchStr = search_columns.value.toLowerCase();
-  return rootType.fields.filter(
-    (f: any) => !f.on && f.name.toLowerCase().includes(searchStr)
-  );
+  return filterAvailable(rootType?.fields || [], search_columns.value);
 }
 
 /** Get the scalar sub-fields of an FK column's related type (for the display field dropdown) */
@@ -769,15 +774,6 @@ function getSubFields(col: any) {
   const related = columns.value.find((c: any) => c.name === col.resolvedTypeName);
   if (!related?.fields) return [];
   return related.fields.filter((f: any) => f.resolvedTypeKind === "SCALAR");
-}
-
-/** Handle dropping a column onto a new position */
-function onColumnDrop(idx: number) {
-  const from = drag_col_idx.value;
-  if (from === null || from === idx) return;
-  moveColumn(from, idx);
-  drag_col_idx.value = null;
-  drag_over_col_idx.value = null;
 }
 
 // ================================================================
@@ -808,12 +804,10 @@ const q = {
 const queryDoc = ref(gql(jtg(q)));
 const queryVariables = ref<any>({ first: page_size.value, offset: 0 });
 
-// TODO(DRY #12): only a_get below is actually dead in current code. Other dead-code items in docs/Home.md (fields ref, duplicate Columns count row, connection metadata props) are not present in this file. Partial feasibility.
 const {
   result: a_r,
   loading: a_l,
   error: a_e,
-  refetch: a_get, // TODO(DRY #12): unused — remove.
 } = useQuery(queryDoc, queryVariables);
 
 /**
@@ -858,26 +852,12 @@ function get() {
   const newVariables: any = {};
 
   // --- Build filter payload ---
-  // Walk each active filter path and nest values into a deeply nested object
+  // Walk each active filter path and merge its nested value into a shared object
   // e.g. paths [brand → name → icontains:"x"] becomes { brand: { name: { icontains: "x" } } }
-  // TODO(DRY #8): same nested-write loop runs in the sort payload below — extract buildNestedFromPath(path, leafGuard). OK.
-  let filterPayload: any = {};
-
-  activeFilterPaths.value.forEach((path) => {
-    // Skip entire path if the leaf has no value — avoids empty nested objects like { brand: { name: {} } }
-    const leaf = path[path.length - 1]?.selected;
-    if (!leaf || leaf.value === "" || leaf.value === undefined) return;
-
-    let currentLevel = filterPayload;
-    for (let i = 0; i < path.length; i++) {
-      const node = path[i].selected;
-      if (i === path.length - 1) currentLevel[node.name] = node.value;
-      else {
-        currentLevel[node.name] ??= {};
-        currentLevel = currentLevel[node.name];
-      }
-    }
-  });
+  const filterPayload: any = {};
+  for (const path of activeFilterPaths.value) {
+    buildNestedFromPath(path, filterPayload);
+  }
 
   // Attach filter variable if any filters have values
   if (Object.keys(filterPayload).length > 0 && filter_root.value !== "") {
@@ -890,22 +870,11 @@ function get() {
   // Each sort path becomes its own object in the orderBy array so that
   // array position (not JS object key order) determines sort priority.
   // e.g. paths [name → ASC, brand → name → DESC] becomes [{ name: "ASC" }, { brand: { name: "DESC" } }]
-  let sortPayloads: any[] = [];
-  orderedSortPaths.value.forEach((path) => {
-    let sortObj: any = {};
-    let currentLevel = sortObj;
-    for (let i = 0; i < path.length; i++) {
-      const node = path[i].selected;
-      if (i === path.length - 1) {
-        if (node.value !== "" && node.value !== undefined)
-          currentLevel[node.name] = node.value;
-      } else {
-        currentLevel[node.name] ??= {};
-        currentLevel = currentLevel[node.name];
-      }
-    }
-    if (Object.keys(sortObj).length > 0) sortPayloads.push(sortObj);
-  });
+  const sortPayloads: any[] = [];
+  for (const path of orderedSortPaths.value) {
+    const obj = buildNestedFromPath(path);
+    if (obj) sortPayloads.push(obj);
+  }
 
   // Attach orderBy variable
   if (sortPayloads.length > 0 && sort_var_type.value !== "") {
@@ -1022,21 +991,13 @@ function goToPage(n: number) {
               <h5 class="m-0">
                 <b>{{ activeFilterPaths.length }} Filters</b>
               </h5>
-              <!-- TODO(DRY #3): same click pattern repeats on Sort/Column dropdowns below — extract openAddDropdown(searchRef, $event). JS feasible; markup stays (no child components). -->
               <div class="dropdown">
                 <button
                   class="btn btn-primary btn-sm"
                   data-bs-toggle="dropdown"
                   aria-expanded="false"
                   :disabled="!!(q_l || q_e)"
-                  @click="
-                    search_fields = '';
-                    nextTick(() =>
-                      $event.currentTarget.nextElementSibling
-                        ?.querySelector('input')
-                        ?.focus()
-                    );
-                  "
+                  @click="search_fields = ''; focusDropdownInput($event)"
                 >
                   <i class="bi bi-plus-lg"></i>
                   Filter
@@ -1122,7 +1083,6 @@ function goToPage(n: number) {
                           </div>
                         </td>
 
-                        <!-- TODO(DRY #10): move the Int/Decimal/Float check into an inputTypeFor(fieldType) script helper. OK; branched template itself stays. -->
                         <!-- Leaf cell: value input, type depends on the field's GraphQL type -->
                         <td
                           v-if="cell.level.isLeaf"
@@ -1145,13 +1105,7 @@ function goToPage(n: number) {
                           <!-- Numeric / text input -->
                           <input
                             v-else
-                            :type="
-                              ['Int', 'Decimal', 'Float'].includes(
-                                cell.level.fieldType
-                              )
-                                ? 'number'
-                                : 'text'
-                            "
+                            :type="inputTypeFor(cell.level.fieldType)"
                             v-model="cell.level.selected.value"
                             @keyup.enter="get()"
                             :placeholder="cell.level.fieldType + '...'"
@@ -1192,14 +1146,7 @@ function goToPage(n: number) {
                   data-bs-toggle="dropdown"
                   aria-expanded="false"
                   :disabled="!!(q_l || q_e)"
-                  @click="
-                    search_sorts = '';
-                    nextTick(() =>
-                      $event.currentTarget.nextElementSibling
-                        ?.querySelector('input')
-                        ?.focus()
-                    );
-                  "
+                  @click="search_sorts = ''; focusDropdownInput($event)"
                 >
                   <i class="bi bi-plus-lg"></i>
                   Sort
@@ -1355,14 +1302,7 @@ function goToPage(n: number) {
                   data-bs-toggle="dropdown"
                   aria-expanded="false"
                   :disabled="!!(q_l || q_e)"
-                  @click="
-                    search_columns = '';
-                    nextTick(() =>
-                      $event.currentTarget.nextElementSibling
-                        ?.querySelector('input')
-                        ?.focus()
-                    );
-                  "
+                  @click="search_columns = ''; focusDropdownInput($event)"
                 >
                   <i class="bi bi-plus-lg"></i>
                   Column
@@ -1539,20 +1479,13 @@ function goToPage(n: number) {
                   v-for="col in orderedColumns"
                   :key="col.name"
                 >
-                  <!-- TODO(DRY #11): extract renderCellValue(col, row) for scalar/FK. Connection still needs v-for in template (multi-line). Partial. -->
-                  <!-- Scalar: render value directly -->
-                  <template v-if="col.resolvedTypeKind === 'SCALAR'">
-                    {{ h.node[col.name] }}
-                  </template>
-                  <!-- FK (forward relation): render the selected displayField -->
-                  <template v-else-if="col.resolvedTypeKind === 'OBJECT' && !col.isConnection">
-                    {{ h.node[col.name]?.[col.displayField] }}
-                  </template>
-                  <!-- Connection (backward relation): collapsed mode — loop over edges -->
-                  <template v-else-if="col.isConnection">
-                    <div v-for="(edge, i) in h.node[col.name]?.edges" :key="i">
-                      {{ Object.values(edge.node || {}).map(v => typeof v === 'object' ? Object.values(v).join(': ') : v).join(', ') }}
+                  <template v-if="col.isConnection">
+                    <div v-for="(line, i) in cellConnectionLines(col, h.node)" :key="i">
+                      {{ line }}
                     </div>
+                  </template>
+                  <template v-else>
+                    {{ cellText(col, h.node) }}
                   </template>
                 </td>
               </tr>

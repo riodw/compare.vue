@@ -59,23 +59,23 @@ At a high level it does this:
 - `page_size`
   Page size used for `first`.
 
-- `fields`
-  Stores discovered root query args that are considered model fields after filtering out envelope args and `ID` args. This is populated during introspection but is not currently rendered in the template.
-
 - `filter_root`, `filters`, `search_fields`
   Filter root type name, flat filter type store, and dropdown search state.
 
-- `sort_root`, `sort_var_type`, `sorts`, `search_sorts`
-  Sort root type name, full GraphQL variable type string for `orderBy`, flat sort type store, and dropdown search state.
+- `sort_root`, `sort_var_type`, `sorts`, `search_sorts`, `sort_path_order`
+  Sort root type name, full GraphQL variable type string for `orderBy`, flat sort type store, dropdown search state, and user-managed path-order array.
 
-- `sort_path_order`, `drag_sort_idx`, `drag_over_sort_idx`
-  Sort drag-and-drop ordering state.
+- `drag_sort_idx`, `drag_over_sort_idx`, `onSortDrop`
+  Destructured out of a `makeDragReorder(sort_path_order, get)` call. See the `makeDragReorder` entry under Helper Functions.
 
 - `column_root`, `columns`, `column_order`, `search_columns`
   Root node object type, flat object-type store for columns, user column order, and column dropdown search state.
 
-- `drag_col_idx`, `drag_over_col_idx`
-  Column drag-and-drop ordering state.
+- `drag_col_idx`, `drag_over_col_idx`, `onColumnDrop`
+  Destructured out of a `makeDragReorder(column_order, get)` call.
+
+- `MODES`
+  A small registry `{ filters: { store, root, search }, sorts: { store, root, search } }` used by the path-based UI functions (`enable`, `topLevel`, `searchFieldsFn`, `activePaths`, `changeNode`, `addNext`) to look up the right store/root/search refs for the current mode without repeating `{ filters, sorts }[mode]` dispatch.
 
 - `paginationOffset`
   Zero-based offset used for pagination.
@@ -94,6 +94,55 @@ Why it exists:
 - The component uses introspection results as mutable UI state objects.
 - Removing `__typename` avoids carrying Apollo metadata through the filter/sort/column state trees.
 
+### `applyOrder(items, order, keyFn)`
+
+Generic reorder helper used by both `orderedSortPaths` and `orderedColumns`.
+
+Behavior:
+
+- builds a map of `items` keyed by `keyFn(item)`
+- emits items listed in `order` first, in that stored order
+- appends any remaining items whose keys are not yet in `order`
+
+### `syncOrder(items, orderRef, keyFn)`
+
+Generic order-sync helper used by the watchers on `activeSortPaths` and `activeColumns`.
+
+Behavior:
+
+- removes stale keys from `orderRef` that are no longer in `items`
+- appends new keys for items whose keys are not yet in `orderRef`
+
+### `focusDropdownInput(ev)`
+
+After Vue flushes on `nextTick`, finds the dropdown menu that sits next to the clicked trigger button and focuses its inner `<input>`.
+
+Used by the "Add Filter", "Add Sort", and "Add Column" dropdown buttons to put the caret directly in the search input when the menu opens.
+
+### `makeDragReorder(orderRef, onChange?)`
+
+Factory that returns drag-and-drop reorder state and an `onDrop` handler for a list whose order lives in `orderRef`.
+
+Returned object:
+
+- `dragIdx`
+  the index of the row currently being dragged
+- `dragOverIdx`
+  the index of the row currently hovered
+- `onDrop(idx)`
+  1. pulls the item at `dragIdx` out of a clone of `orderRef`
+  2. inserts it at `idx`
+  3. assigns the new array back to `orderRef`
+  4. clears drag state
+  5. calls `onChange?.()`
+
+This factory is used twice:
+
+- for sort row drag-and-drop against `sort_path_order`
+- for column row drag-and-drop against `column_order`
+
+Both instances pass `get` as `onChange` so dropping a row recompiles the query.
+
 ### `unwrapType(t)`
 
 Recursively unwraps nested `NON_NULL` and `LIST` wrappers and returns:
@@ -105,11 +154,56 @@ Recursively unwraps nested `NON_NULL` and `LIST` wrappers and returns:
 - `innerKind`
   The innermost GraphQL kind.
 
-This is used in three places:
+This is used in:
 
 - getting the real `orderBy` input type
 - getting the root connection type returned by `ROOT`
 - resolving field types during column introspection
+
+### `makeTypeQuery(selection)`
+
+Builds the `__type(name: $name)` introspection query envelope with a custom selection set merged in.
+
+Used to generate both:
+
+- `input_query` — for `INPUT_OBJECT` inputFields
+- `columns_query` — for `OBJECT` fields including their args
+
+### `inputTypeFor(fieldType)`
+
+Returns the HTML input type to use for a GraphQL scalar field type:
+
+- `Int`, `Decimal`, `Float` -> `"number"`
+- everything else -> `"text"`
+
+Used in the filter leaf template.
+
+### `cellText(col, row)`
+
+Renders a scalar or forward-FK column cell as a single string:
+
+- scalar -> `row[col.name] ?? ""`
+- forward object relation -> `row[col.name]?.[col.displayField] ?? ""`
+- anything else -> `""`
+
+### `cellConnectionLines(col, row)`
+
+Renders a connection column cell as one string per edge. Each edge's node values are flattened; nested object values are joined with `": "` and top-level values are joined with `", "`.
+
+### `filterAvailable(items, searchStr)`
+
+Returns items whose `on` flag is false and whose name contains the lowercased search string. Used by both the filter/sort dropdown list and the column dropdown list.
+
+### `buildNestedFromPath(path, target = {})`
+
+Walks a path `[{ selected: { name, value } }, ...]` writing each segment's name as a key on `target`, descending at every non-leaf level and assigning the leaf's value at the bottom.
+
+Returns:
+
+- `target` if the leaf has a meaningful value
+- `null` if the leaf value is `""` or `undefined`
+
+Used by `get()` to build the filter payload (single shared target) and the sort payloads (new target per path).
 
 ### `camel(s)`
 
@@ -157,92 +251,56 @@ Returned refs:
 
 When the root introspection result arrives, the watcher performs the main boot sequence.
 
-#### Step 1: Extract root query args into `fields`
+Steps:
 
-The watcher:
+1. Find the field whose name matches `ROOT` and read its `args`.
+2. `stripTypename` the args array (defaulting to `[]` on failure).
+3. Call `initFiltersFrom(args)` (fire-and-forget).
+4. Call `initSortsFrom(args)` (fire-and-forget).
+5. Call `initColumnsFrom(rootField)` which resolves the connection node type, introspects the object graph, enables default columns, and finally calls `get()`.
 
-1. finds the field whose name matches `ROOT`
-2. reads its `args`
-3. strips `__typename`
-4. excludes names in `NON_MODEL_ARGS`
-5. excludes args whose type name is `ID`
+The filter and sort trees are loaded in the background; the initial data fetch waits only on column introspection so the first query has an accurate `edges.node` selection.
 
-The result is assigned to `fields.value`.
+### `initFiltersFrom(args)`
 
-Important note:
+- finds the `filter` arg on `ROOT`
+- sets `filter_root` to its input type name
+- kicks off `introspect(name, "filters")`
 
-- `fields` is currently populated but not used by the template.
+### `initSortsFrom(args)`
 
-#### Step 2: Discover the filter root type
+- finds the `orderBy` arg on `ROOT`
+- uses `unwrapType()` to capture both the full variable type string (into `sort_var_type`) and the inner input-object type name (into `sort_root`)
+- kicks off `introspect(innerName, "sorts")`
 
-The watcher finds the `filter` arg on the `tools` field.
+### `initColumnsFrom(rootField)`
 
-If present:
+Awaited. Does the column bootstrapping so the initial `get()` runs with columns populated.
 
-- `filter_root.value = filterArg.type.name`
-- `introspect(filterArg.type.name, "filters")`
-
-This kicks off recursive discovery of the filter input-object tree.
-
-#### Step 3: Discover the sort root type
-
-The watcher finds the `orderBy` arg on the `tools` field.
-
-Because `orderBy` is often wrapped in `LIST` and `NON_NULL`, the watcher uses `unwrapType()` to recover:
-
-- the full variable type string, stored in `sort_var_type`
-- the inner input-object type name, stored in `sort_root`
-
-If found:
-
-- `introspect(innerName, "sorts")`
-
-#### Step 4: Discover the root node type for columns
-
-The watcher reads the return type of the `tools` query field.
-
-Because `tools` returns a Relay-style connection rather than the row/node type directly, the watcher:
-
-1. unwraps the return type to get the connection type name
-2. calls `resolveConnectionNodeType(connectionName)`
-3. stores the result in `column_root`
-4. calls `introspectColumns(nodeTypeName)`
-
-#### Step 5: Initialize default columns
-
-After `introspectColumns()` finishes, the watcher sets default column state on the root node type:
-
-- all root scalar fields are turned on
-- each forward object relation gets a default `displayField`
-  - this is the first scalar field found on the related object type
-- `column_order` is initialized from the active root scalar fields
-
-#### Step 6: Trigger the initial data query
-
-Once the default columns are ready, the watcher calls `get()`.
-
-This is the first live data fetch for the table.
-
-Important sequencing detail:
-
-- the filter and sort introspection calls are started but not awaited
-- the initial table fetch waits on column introspection, not on the filter/sort trees
-
-That means the initial results table can load even if the filter/sort trees are still filling in.
+1. Unwrap the `ROOT` return type to find the connection type name.
+2. Call `resolveConnectionNodeType(connectionName)` to get the inner node type name.
+3. Store it in `column_root`.
+4. `await introspectColumns(nodeTypeName)`.
+5. Enable defaults on the root node type:
+   - every `SCALAR` field -> `on = true`
+   - every forward `OBJECT` field that is not a connection -> `displayField` defaults to the first scalar field of the related type
+6. Initialize `column_order` from the active (`on`) root fields.
+7. Call `get()` to run the initial live data query.
 
 ---
 
 ## Phase 2: Recursive Filter And Sort Type Introspection
 
+### `typeRef2` and `typeRef3`
+
+Shared type-ref fragment objects used by the introspection queries:
+
+- `typeRef2` covers `LIST(NON_NULL(Type))` — enough for `INPUT_OBJECT` field types
+- `typeRef3` adds one more nesting level for `NON_NULL(LIST(NON_NULL(Type)))` — used by object fields/args
+
 ### `input_query`
 
-`input_query` is a reusable introspection query for any named GraphQL `INPUT_OBJECT` type.
-
-It requests:
-
-- the type's name and kind
-- its `inputFields`
-- each field's nested type metadata
+Built via `makeTypeQuery(...)`. Fetches `inputFields` for any named `INPUT_OBJECT` type.
 
 ### `introspect(typeName, mode)`
 
@@ -257,10 +315,8 @@ Parameters:
 
 Behavior:
 
-1. Resolve the active Apollo client with `useApolloClient()`.
-2. Pick the correct store:
-   - `filters` for filter mode
-   - `sorts` for sort mode
+1. Resolve the active Apollo client with `useApolloClient().resolveClient()`.
+2. Pick the correct store via `{ filters, sorts }[mode]`.
 3. Run `client.query(...)` with:
    - `query: gql(jtg(input_query))`
    - `variables: { name: typeName }`
@@ -291,14 +347,12 @@ Columns use a separate introspection path because they operate on GraphQL object
 
 ### `columns_query`
 
-`columns_query` introspects any named object type and requests:
+Built via `makeTypeQuery(...)`. Requests:
 
 - the type name and kind
-- its fields
-- each field's args
-- each field's nested return type metadata
-
-This extra `args` data matters for connection fields because the component records any nested `filter` and `orderBy` arg types found on those connections.
+- its `fields`
+- each field's `args`
+- each field's return type metadata (nested via `typeRef3`)
 
 ### `resolveConnectionNodeType(connectionTypeName)`
 
@@ -315,8 +369,8 @@ It follows this path:
 
 This function is used:
 
-- once for the root `tools` return type
-- again for any object field whose type name ends with `Connection`
+- once for the root `tools` return type (via `initColumnsFrom`)
+- again during `introspectColumns` for any object field whose type name ends with `Connection`
 
 ### `introspectColumns(typeName, visited = new Set())`
 
@@ -324,36 +378,25 @@ This recursively walks object types used for table columns.
 
 Behavior:
 
-1. Bail out if the type name has already been visited.
+1. Bail out if the type name has already been visited (prevents infinite loops on circular type references).
 2. Introspect the object type with `columns_query`.
 3. Strip `__typename`.
 4. Remove Relay envelope fields listed in `CONNECTION_FIELDS`.
 5. For each field:
    - resolve its innermost type name and kind with `unwrapType()`
    - store them as `resolvedTypeName` and `resolvedTypeKind`
-   - initialize column UI metadata:
-     - `isConnection`
-     - `nodeType`
-     - `filterType`
-     - `orderByType`
-     - `displayMode`
-     - `pivotField`
-     - `valueField`
-     - `displayField`
-     - `on`
-6. If the field is an object type whose name ends with `Connection`:
-   - mark `isConnection = true`
-   - capture nested `filter` and `orderBy` input type names from field args if present
-   - resolve the connection's node type with `resolveConnectionNodeType()`
+   - initialize column metadata:
+     - `isConnection = false`
+     - `nodeType = null`
+     - `displayField = null` (for FK objects: which sub-field to show)
+     - `on = false`
+6. If the field is an `OBJECT` type whose name ends with `Connection`:
+   - set `isConnection = true`
+   - resolve the connection's node type with `resolveConnectionNodeType()` and store the result as `nodeType`
 7. Upsert the object type into `columns.value`.
 8. Recurse into child object types in parallel:
-   - for plain objects, recurse into `resolvedTypeName`
    - for connections, recurse into `nodeType`
-
-Important note:
-
-- `filterType`, `orderByType`, `displayMode`, `pivotField`, and `valueField` are stored but not currently used by the template.
-- `displayField` is used for forward object relations in the columns UI and table renderer.
+   - otherwise, recurse into `resolvedTypeName`
 
 Result:
 
@@ -373,7 +416,7 @@ This powers the "Add Filter" dropdown.
 
 ### `searchFieldsFn("filters")`
 
-Filters the top-level filter options by `search_fields` and excludes fields whose `on` flag is already true.
+Delegates to `filterAvailable(topLevel("filters"), search_fields.value)`. Returns top-level filter options that are not yet active and whose names match the search text.
 
 ### `enable(inputField, "filters")`
 
@@ -436,7 +479,7 @@ Cells hidden by a rowspan are marked as:
 Replaces the selected field at a given depth:
 
 1. deactivate old field
-2. activate new field
+2. activate new field via `enable`
 3. cascade into first child if needed
 
 The template calls `get()` after this change because the active branch set changed.
@@ -467,7 +510,7 @@ Looks up `sort_root` in `sorts.value` and returns its `inputFields`.
 
 ### `searchFieldsFn("sorts")`
 
-Filters top-level sort options by `search_sorts` and excludes active options.
+Delegates to `filterAvailable(topLevel("sorts"), search_sorts.value)`.
 
 ### `enable(inputField, "sorts")`
 
@@ -498,23 +541,20 @@ Example:
 
 ### `orderedSortPaths`
 
-Reorders `activeSortPaths` using the user-managed `sort_path_order` array.
+`applyOrder(activeSortPaths.value, sort_path_order.value, sortPathKey)`.
 
-Behavior:
-
-- paths listed in `sort_path_order` come first in that stored order
-- newly added paths not yet seen are appended afterward
+Paths listed in `sort_path_order` come first in that stored order; newly added paths not yet seen are appended.
 
 ### `watch(activeSortPaths, ...)`
 
-Keeps `sort_path_order` synchronized with the actual active sort paths:
+Delegates to `syncOrder(paths, sort_path_order, sortPathKey)` to:
 
-- remove stale keys
+- remove stale keys from `sort_path_order`
 - append new keys
 
 ### Drag And Drop
 
-Sort row drag-and-drop is implemented directly in the template using:
+Sort row drag-and-drop is implemented directly in the template using the state/handler pair produced by `makeDragReorder(sort_path_order, get)`:
 
 - `drag_sort_idx`
 - `drag_over_sort_idx`
@@ -525,7 +565,7 @@ Sort row drag-and-drop is implemented directly in the template using:
 1. removes the dragged key from `sort_path_order`
 2. inserts it at the target position
 3. clears drag state
-4. calls `get()`
+4. calls `get()` (passed in as `onChange`)
 
 Because sort priority is represented by array position in `orderBy`, drag reorder changes the query payload.
 
@@ -541,7 +581,7 @@ After root column introspection finishes:
 
 - all root scalar fields are enabled
 - all root forward object relations get a default `displayField`
-- `column_order` starts with the enabled root scalar field names
+- `column_order` starts with the enabled root field names
 
 ### `activeColumns`
 
@@ -552,20 +592,20 @@ Computed list of active root-level fields:
 
 ### `orderedColumns`
 
-Reorders `activeColumns` according to `column_order`.
+`applyOrder(activeColumns.value, column_order.value, columnKey)`, where `columnKey` is `c => c.name`.
 
 Any active column not yet present in `column_order` is appended.
 
 ### `watch(activeColumns, ...)`
 
-Keeps `column_order` in sync:
+Delegates to `syncOrder(cols, column_order, columnKey)`:
 
 - removes names for inactive columns
 - appends names for newly activated columns
 
 ### `availableColumns()`
 
-Returns root-level columns that are currently inactive and match `search_columns`.
+Delegates to `filterAvailable(rootType?.fields || [], search_columns.value)`. Returns root-level columns that are currently inactive and match `search_columns`.
 
 This powers the "Add Column" dropdown.
 
@@ -579,11 +619,6 @@ This powers the "Add Column" dropdown.
 - sets `field.on = false`
 - calls `get()`
 
-### `moveColumn(fromIndex, toIndex)`
-
-- reorders `column_order`
-- calls `get()`
-
 ### `getSubFields(col)`
 
 For a forward object relation, finds the related object type in `columns.value` and returns only its scalar fields.
@@ -592,13 +627,13 @@ This drives the display-field selector in the columns panel.
 
 ### Column Drag And Drop
 
-Column row drag-and-drop uses:
+Column row drag-and-drop uses the state/handler pair produced by `makeDragReorder(column_order, get)`:
 
 - `drag_col_idx`
 - `drag_over_col_idx`
 - `onColumnDrop(idx)`
 
-`onColumnDrop(idx)` delegates to `moveColumn(from, idx)`, which both updates order and triggers `get()`.
+`onColumnDrop(idx)` reorders `column_order` and calls `get()` via the `onChange` callback.
 
 ### Supported Column Types
 
@@ -606,15 +641,15 @@ The column system currently supports three render/query patterns:
 
 1. Scalar field
    - query: request the field directly
-   - render: show the scalar value directly
+   - render: show the scalar value directly via `cellText`
 
 2. Forward object relation
    - query: request only the selected `displayField`
-   - render: show `row[field][displayField]`
+   - render: show `row[field][displayField]` via `cellText`
 
 3. Connection relation
    - query: request `edges.node` plus every scalar field on the connection node type
-   - render: flatten each returned edge node into a comma-separated string
+   - render: flatten each returned edge node into a line via `cellConnectionLines`
 
 Important limitation:
 
@@ -643,11 +678,9 @@ That initial shape is only a starting point. `get()` rebuilds the variable and a
 ### `queryDoc` And `queryVariables`
 
 - `queryDoc`
-  compiled GraphQL document
+  compiled GraphQL document ref
 - `queryVariables`
-  variables object for Apollo
-
-Both are refs.
+  variables object ref for Apollo
 
 ### `useQuery(queryDoc, queryVariables)`
 
@@ -661,12 +694,6 @@ Returned refs:
   table loading state
 - `a_e`
   table error state
-- `a_get`
-  Apollo refetch function
-
-Important note:
-
-- `a_get` is currently destructured but not used.
 
 ### `get()`
 
@@ -699,18 +726,18 @@ Per column type:
 - scalar
   - `newNode[col.name] = true`
 
-- forward object relation
-  - if `displayField` exists:
-    - `newNode[col.name] = { [displayField]: true }`
-  - otherwise fallback:
-    - `newNode[col.name] = { id: true }`
-
 - connection relation
   - find the connection node type in `columns.value`
   - collect all scalar fields on that node type
   - build:
     - `{ edges: { node: innerNode } }`
   - if no scalar fields are found, fallback to `{ id: true }`
+
+- forward object relation
+  - if `displayField` exists:
+    - `newNode[col.name] = { [displayField]: true }`
+  - otherwise fallback:
+    - `newNode[col.name] = { id: true }`
 
 Then:
 
@@ -719,7 +746,7 @@ Then:
 Important note:
 
 - if `orderedColumns` is empty, `get()` does not overwrite `edges.node`
-- in normal use this is avoided because the watcher enables all root scalar fields by default, but it is still the current code path
+- in normal use this is avoided because `initColumnsFrom` enables all root scalar fields by default, but it is still the current code path
 
 #### Step 3: Clear variable and arg declarations
 
@@ -732,9 +759,7 @@ Then it builds a fresh `newVariables` object.
 
 #### Step 4: Build filter payload
 
-`get()` walks `activeFilterPaths`.
-
-Each path becomes nested objects inside a single `filterPayload`.
+`get()` walks `activeFilterPaths` and calls `buildNestedFromPath(path, filterPayload)` with a single shared target.
 
 Example:
 
@@ -754,9 +779,9 @@ becomes:
 }
 ```
 
-Filter paths whose leaf value is `""` or `undefined` are skipped entirely.
+Filter paths whose leaf value is `""` or `undefined` are skipped entirely (because `buildNestedFromPath` returns `null` in that case).
 
-If the final payload is non-empty:
+If the final payload is non-empty and `filter_root` is set:
 
 - `q.query[ROOT].__args.filter = new VariableType("filter")`
 - `q.query.__variables.filter = filter_root.value`
@@ -764,9 +789,7 @@ If the final payload is non-empty:
 
 #### Step 5: Build sort payload
 
-`get()` walks `orderedSortPaths`.
-
-Each sort path becomes its own nested object.
+`get()` walks `orderedSortPaths` and calls `buildNestedFromPath(path)` once per path with a fresh target, collecting results into an array so array position determines sort priority.
 
 Example:
 
@@ -783,7 +806,7 @@ becomes:
 ]
 ```
 
-If any sort objects exist:
+If any sort objects exist and `sort_var_type` is set:
 
 - `q.query[ROOT].__args.orderBy = new VariableType("orderBy")`
 - `q.query.__variables.orderBy = sort_var_type.value`
@@ -810,10 +833,6 @@ If `page_size.value` is truthy, `get()` always declares both:
 and always includes both values in `newVariables`.
 
 This matters because `goToPage()` later patches only `queryVariables.offset`, and that only works if `$offset` is present in the compiled query document.
-
-This is a correction from older documentation:
-
-- current code does include `offset: 0` on page 1
 
 #### Step 8: Recompile and trigger Apollo
 
@@ -859,17 +878,11 @@ On change:
 
 1. read the input value
 2. coerce to number
-3. apply `Math.abs(...)`
+3. apply `Math.abs(...)`, `Math.floor(...)`, and a `|| 1` fallback, clamped with `Math.max(1, ...)`
 4. assign to `page_size`
 5. call `get()`
 
-This resets pagination back to page 1 and recompiles the query using the new `first`.
-
-Potential edge case:
-
-- `Math.abs(0)` is `0`
-- if `page_size` becomes `0`, `get()` will skip adding `first` and `offset`, and pagination math becomes problematic
-- this is current behavior; the input only has `min="1"` at the HTML level
+This resets pagination back to page 1 and recompiles the query using the new `first`. The `Math.max(1, ...)` floor protects against zero or non-numeric input.
 
 ---
 
@@ -899,15 +912,14 @@ Important note:
 
 The card only renders when `!q_e`.
 
-When expanded, it contains:
+When expanded, it contains, in order:
 
-1. filter builder
-2. a standalone list item labeled `Columns` that displays `activeSortPaths.length`
-3. sort builder
-4. the actual column manager
-5. collapse control
+1. filters panel (count + add dropdown + filter grid)
+2. sorts panel (count + add dropdown + draggable sort rows)
+3. columns panel (count + add dropdown + draggable column rows)
+4. collapse control
 
-That standalone `Columns` count row is present in the current template and is separate from the actual columns panel below it.
+Each "Add" dropdown button resets its search state and calls `focusDropdownInput($event)` so the menu's search input gets focus on open.
 
 ### Filter Builder Rendering
 
@@ -916,8 +928,8 @@ The filter section uses `filterGrid` to render a merged-cell table UI.
 Leaf value controls:
 
 - `Boolean` -> `<select>` with blank / true / false
-- `Int`, `Decimal`, `Float` -> `<input type="number">`
-- everything else -> `<input type="text">`
+- `Int`, `Decimal`, `Float` -> `<input type="number">` (via `inputTypeFor`)
+- everything else -> `<input type="text">` (via `inputTypeFor`)
 
 Trigger behavior:
 
@@ -943,17 +955,17 @@ Trigger behavior:
 - changing a branch selector calls `changeNode(...); get()`
 - changing sort direction calls `get()`
 - deleting a path calls `deletePath(...); get()`
-- dropping a row calls `onSortDrop(...)`
+- dropping a row calls `onSortDrop(...)` (which itself calls `get()`)
 
 ### Column Manager Rendering
 
-The actual columns panel renders one draggable row per item in `orderedColumns`.
+The columns panel renders one draggable row per item in `orderedColumns`.
 
 Each row contains:
 
 - drag handle
-- column name
-- optional display-field selector for forward object relations
+- disabled button showing the column name
+- optional display-field selector for forward object relations (renders only when `col.resolvedTypeKind === "OBJECT" && !col.isConnection`)
 - delete button
 
 Trigger behavior:
@@ -961,7 +973,7 @@ Trigger behavior:
 - adding a column calls `enableColumn(...)`
 - deleting a column calls `disableColumn(...)`
 - changing a forward relation `displayField` calls `get()`
-- dropping a row calls `onColumnDrop(...)`
+- dropping a row calls `onColumnDrop(...)` (which itself calls `get()`)
 
 ### Collapse And Summary Mode
 
@@ -996,19 +1008,12 @@ Table headers use:
 
 Table body rendering per column type:
 
-1. Scalar field
-   - render `h.node[col.name]`
+1. Connection relation
+   - iterate `cellConnectionLines(col, h.node)`
+   - render one line per edge
 
-2. Forward object relation
-   - render `h.node[col.name]?.[col.displayField]`
-
-3. Connection relation
-   - iterate `h.node[col.name]?.edges`
-   - flatten `edge.node` values
-   - if a nested value is itself an object, join its values with `": "`
-   - join top-level values with `", "`
-
-This connection rendering is intentionally generic and not schema-specific.
+2. Scalar or forward object relation
+   - render `cellText(col, h.node)`
 
 ### Pagination Footer
 
@@ -1034,15 +1039,15 @@ component setup
   -> watch(q_r) waits for root introspection
 
 root introspection resolves
-  -> populate fields
-  -> start filter input-type introspection
-  -> start sort input-type introspection
-  -> resolve root connection node type
-  -> introspect root object graph for columns
-  -> enable all root scalar columns
-  -> assign default displayField for root forward relations
-  -> initialize column_order
-  -> get()
+  -> initFiltersFrom(args) (fire-and-forget)
+  -> initSortsFrom(args) (fire-and-forget)
+  -> initColumnsFrom(rootField)
+       -> resolveConnectionNodeType
+       -> introspectColumns
+       -> enable all root scalar columns
+       -> assign default displayField for root forward relations
+       -> initialize column_order
+       -> get()
   -> Apollo live data query runs
 ```
 
@@ -1051,7 +1056,7 @@ root introspection resolves
 ```text
 open Filter dropdown
   -> reset search_fields
-  -> focus dropdown search input
+  -> focusDropdownInput focuses the search input
   -> choose top-level field
   -> enable(field, "filters")
   -> cascade to first child until filter leaf
@@ -1078,7 +1083,7 @@ enable filter path
 ```text
 open Sort dropdown
   -> reset search_sorts
-  -> focus dropdown search input
+  -> focusDropdownInput focuses the search input
   -> choose top-level field
   -> enable(field, "sorts")
   -> cascade until enum leaf
@@ -1114,6 +1119,18 @@ remove column
   -> get()
 ```
 
+### User Reorders Columns
+
+```text
+drag row
+  -> drag_col_idx set
+drop row
+  -> onColumnDrop(targetIndex)
+  -> reorder column_order
+  -> clear drag state
+  -> get()
+```
+
 ### User Changes Page
 
 ```text
@@ -1128,7 +1145,7 @@ click page button
 
 ```text
 change page size input
-  -> coerce to absolute number
+  -> coerce to positive integer (min 1)
   -> assign page_size
   -> get()
   -> reset to page 1
@@ -1143,12 +1160,9 @@ change page size input
 fields_query
   -> q_r
   -> watch(q_r)
-       -> fields
-       -> filter_root + introspect(..., "filters")
-       -> sort_root + sort_var_type + introspect(..., "sorts")
-       -> column_root + introspectColumns(...)
-       -> default root columns
-       -> get()
+       -> initFiltersFrom  -> filter_root + introspect(..., "filters")
+       -> initSortsFrom    -> sort_root + sort_var_type + introspect(..., "sorts")
+       -> initColumnsFrom  -> column_root + introspectColumns(...) + defaults + get()
 
 filters store
   -> topLevel("filters")
@@ -1160,12 +1174,13 @@ sorts store
   -> topLevel("sorts")
   -> searchFieldsFn("sorts")
   -> activeSortPaths
-  -> watch(activeSortPaths)
-  -> orderedSortPaths
+  -> watch(activeSortPaths) -> syncOrder(sort_path_order)
+  -> orderedSortPaths       -> applyOrder
 
 columns store
   -> activeColumns
-  -> orderedColumns
+  -> watch(activeColumns)   -> syncOrder(column_order)
+  -> orderedColumns         -> applyOrder
   -> availableColumns()
   -> getSubFields()
 
@@ -1189,12 +1204,10 @@ queryDoc + queryVariables
 
 ## Current Implementation Notes
 
-- `fields.value` is populated but currently unused in the template.
-- `a_get` is destructured from Apollo's live query but not currently used.
-- Several connection-field metadata properties are stored on columns but not yet surfaced in the UI.
-- The expanded controls card includes an extra standalone `Columns` count row that currently displays `activeSortPaths.length`.
 - Filter text/number inputs fetch on Enter, not on every keystroke.
 - Search input does fetch on every keystroke.
-- `get()` always resets pagination to page 1.
+- `get()` always resets pagination to page 1, so direct page navigation goes through `goToPage()` which patches `queryVariables.offset` in place.
+- The filter and sort introspection runs are fire-and-forget; only column introspection is awaited before the first `get()`.
+- `makeDragReorder`, `makeTypeQuery`, `applyOrder`, `syncOrder`, `filterAvailable`, `buildNestedFromPath`, `cellText`, `cellConnectionLines`, `inputTypeFor`, and the `MODES` registry are DRY helpers shared across multiple call sites.
 
-This document is intended to match the current implementation, including behavior that may later be refactored.
+This document is intended to match the current implementation.

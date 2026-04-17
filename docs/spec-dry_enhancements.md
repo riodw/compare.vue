@@ -283,3 +283,29 @@ A natural order that minimizes rework:
 4. Item **6** is the capstone and only makes sense once 1–5 are in place.
 
 **Reminder:** every step above modifies only `src/components/Home3.vue`. If a step seems to require a new file or a child component to complete, stop and rescope it — the constraint is hard.
+
+
+-----
+-----
+
+Done (11 of 12 items):
+
+#9 Shared typeRef2/typeRef3 + makeTypeQuery() → input_query and columns_query collapsed to 5-line factory calls.
+#12 Removed unused a_get destructuring.
+#4 filterAvailable(items, searchStr) helper; searchFieldsFn and availableColumns now each 2 lines.
+#1 applyOrder() + syncOrder() helpers; sorts and columns each reduced to one-line computed + one-line watcher.
+#2 makeDragReorder(orderRef, onChange) factory; destructures into existing drag_*_idx / on*Drop names so template is unchanged. Deleted moveColumn.
+#3 focusDropdownInput($event) helper; three 10-line inline handlers became one-liners.
+#5 MODES = { filters, sorts } registry; enable/topLevel/searchFieldsFn/activePaths/changeNode/addNext all swapped to MODES[mode] lookup. Added type Mode.
+#8 buildNestedFromPath(path, target?) helper; get()'s filter and sort payload builders collapse to short for-loops.
+#7 Boot watcher split into initFiltersFrom, initSortsFrom, and async initColumnsFrom; explicit ordering.
+#10 inputTypeFor(fieldType) helper; 8-line template expression → one-liner.
+#11 cellText() + cellConnectionLines() helpers; three <template v-if> branches collapsed to two.
+Skipped:
+
+#6 (capstone makeListManager): with items 1/2/5 in place, each domain is already 3 lines. Wrapping them would add indirection without meaningful DRY gain; filters also can't cleanly participate since they use filterGrid, not an ordered flat list.
+Stats:
+
+Home3.vue: 254 insertions / 321 deletions → net −67 lines.
+Type-check: 11 pre-existing errors in Home3.vue → 6 remaining (all in the untouched filterGrid); refactor introduced zero new errors.
+npm run build: clean.

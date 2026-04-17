@@ -41,6 +41,7 @@ const sort_var_type = ref("");       // full GraphQL variable type string e.g. "
 const sorts = ref<any[]>([]);        // flat store of all introspected sort INPUT_OBJECT types
 const search_sorts = ref("");        // search text inside the "Add Sort" dropdown
 const sort_path_order = ref<string[]>([]);       // user's drag-and-drop sort priority (path keys)
+// TODO(DRY #2): drag_* refs (here and in Columns block below) + onSortDrop/onColumnDrop → one makeDragReorder(orderRef, onChange) factory. OK.
 const drag_sort_idx = ref<number | null>(null);  // drag source row index
 const drag_over_sort_idx = ref<number | null>(null); // drag hover target row index
 
@@ -142,6 +143,7 @@ function unwrapType(t: any): { varType: string; innerName: string; innerKind: st
 }
 
 // When the schema introspection returns, discover the filter, sort, and column types
+// TODO(DRY #7): split boot into initFiltersFrom/initSortsFrom/initColumnsFrom helpers to make "columns must finish before get()" sequencing explicit. OK, no behavior change.
 watch(q_r, (value) => {
   let f;
   try {
@@ -208,6 +210,7 @@ watch(q_r, (value) => {
 
 // Reusable introspection query — fetches inputFields for any named INPUT_OBJECT type.
 // Used by introspect() via separate lazy query instances for filters and sorts.
+// TODO(DRY #9): shares __variables/__type envelope and 3-deep ofType nesting with columns_query below — extract ofTypeFragment (or buildIntrospectionQuery). OK.
 const input_query = {
   query: {
     __variables: { name: "String!" },
@@ -429,6 +432,7 @@ async function introspectColumns(typeName: string, visited = new Set<string>()) 
 //    and laying them out as a grid with merged rowspans.
 // ================================================================
 
+// TODO(DRY #5): enable/topLevel/searchFieldsFn/activePaths/addNext all do { filters, sorts }[mode] lookup — collapse via a MODES registry (declare after filter_root/sort_root/filters/sorts refs). OK.
 /**
  * Toggle a field on and cascade-open the first child at each level.
  * "filters" = filter mode (recurses into any named type).
@@ -468,6 +472,7 @@ function topLevel(mode: "filters" | "sorts") {
   );
 }
 
+// TODO(DRY #4): merge with availableColumns() below into one filterAvailable(items, searchStr) helper. OK.
 /** Filter the dropdown items by the search text, excluding already-active fields */
 function searchFieldsFn(mode: "filters" | "sorts") {
   const searchStr = { filters: search_fields, sorts: search_sorts }[
@@ -631,6 +636,7 @@ function sortPathKey(path: any[]) {
   return path.map((p) => p.selected.name).join(".");
 }
 
+// TODO(DRY #1): same map+append shape as orderedColumns + watchers below — extract applyOrder(items, order, keyFn) + syncOrder(activeItems, orderRef, keyFn). OK.
 /**
  * Reorder activeSortPaths according to the user's drag-and-drop ordering.
  * Paths present in sort_path_order come first (in that order), then any newly added paths.
@@ -695,6 +701,7 @@ function onSortDrop(idx: number) {
 //     determines left-to-right display order.
 // ================================================================
 
+// TODO(DRY #6): capstone — filters/sorts/columns share active→ordered→drag→sync; extract makeListManager({ items, keyFn, ... }) factory. OK; do items 1–5 first. Also enables drag reorder for filters.
 /** Collect active columns from the root node type (fields with .on === true) */
 const activeColumns = computed(() => {
   const rootType = columns.value.find((c: any) => c.name === column_root.value);
@@ -801,11 +808,12 @@ const q = {
 const queryDoc = ref(gql(jtg(q)));
 const queryVariables = ref<any>({ first: page_size.value, offset: 0 });
 
+// TODO(DRY #12): only a_get below is actually dead in current code. Other dead-code items in docs/Home.md (fields ref, duplicate Columns count row, connection metadata props) are not present in this file. Partial feasibility.
 const {
   result: a_r,
   loading: a_l,
   error: a_e,
-  refetch: a_get, // not used
+  refetch: a_get, // TODO(DRY #12): unused — remove.
 } = useQuery(queryDoc, queryVariables);
 
 /**
@@ -852,6 +860,7 @@ function get() {
   // --- Build filter payload ---
   // Walk each active filter path and nest values into a deeply nested object
   // e.g. paths [brand → name → icontains:"x"] becomes { brand: { name: { icontains: "x" } } }
+  // TODO(DRY #8): same nested-write loop runs in the sort payload below — extract buildNestedFromPath(path, leafGuard). OK.
   let filterPayload: any = {};
 
   activeFilterPaths.value.forEach((path) => {
@@ -1013,6 +1022,7 @@ function goToPage(n: number) {
               <h5 class="m-0">
                 <b>{{ activeFilterPaths.length }} Filters</b>
               </h5>
+              <!-- TODO(DRY #3): same click pattern repeats on Sort/Column dropdowns below — extract openAddDropdown(searchRef, $event). JS feasible; markup stays (no child components). -->
               <div class="dropdown">
                 <button
                   class="btn btn-primary btn-sm"
@@ -1112,6 +1122,7 @@ function goToPage(n: number) {
                           </div>
                         </td>
 
+                        <!-- TODO(DRY #10): move the Int/Decimal/Float check into an inputTypeFor(fieldType) script helper. OK; branched template itself stays. -->
                         <!-- Leaf cell: value input, type depends on the field's GraphQL type -->
                         <td
                           v-if="cell.level.isLeaf"
@@ -1528,6 +1539,7 @@ function goToPage(n: number) {
                   v-for="col in orderedColumns"
                   :key="col.name"
                 >
+                  <!-- TODO(DRY #11): extract renderCellValue(col, row) for scalar/FK. Connection still needs v-for in template (multi-line). Partial. -->
                   <!-- Scalar: render value directly -->
                   <template v-if="col.resolvedTypeKind === 'SCALAR'">
                     {{ h.node[col.name] }}

@@ -30,9 +30,6 @@ const search = ref("");          // global search input
 const show_filters = ref(true);  // toggle the filters/sorts panel
 const page_size = ref(100);      // results per page
 
-// ---- Schema Introspection ----
-const fields = ref<any[]>([]);   // model fields discovered from ROOT query args (non-envelope)
-
 // ---- Filters ----
 const filter_root = ref("");     // root INPUT_OBJECT type name (e.g. "ToolFilter")
 const filters = ref<any[]>([]);  // flat store of all introspected filter INPUT_OBJECT types
@@ -144,22 +141,16 @@ function unwrapType(t: any): { varType: string; innerName: string; innerKind: st
   return { varType: t.name || "", innerName: t.name || "", innerKind: t.kind || "" };
 }
 
-// When the schema introspection returns, extract model fields, filter type, and sort type
+// When the schema introspection returns, discover the filter, sort, and column types
 watch(q_r, (value) => {
   let f;
   try {
     f = value?.__type?.fields?.find((field: any) => field.name === ROOT)?.args;
   } catch (error) {
     console.error(error);
-    fields.value = [];
   }
 
   f = stripTypename(f) || [];
-
-  // Keep only actual model fields (exclude envelope args like filter, orderBy, pagination)
-  fields.value = f
-    .filter((arg: any) => !NON_MODEL_ARGS.includes(arg.name))
-    .filter((arg: any) => arg.type?.name !== "ID");
 
   // Kick off recursive introspection of the filter INPUT_OBJECT tree
   const filterArg = f.find((o: any) => o.name === "filter");
@@ -368,7 +359,6 @@ async function resolveConnectionNodeType(connectionTypeName: string): Promise<st
 /**
  * Walk an OBJECT type graph, storing each type in `columns`.
  * Detects Relay connection patterns and unwraps them transparently.
- * Stores filterType/orderByType from each connection field's args.
  * Uses a visited set to prevent infinite loops on circular type references.
  */
 async function introspectColumns(typeName: string, visited = new Set<string>()) {
@@ -400,27 +390,13 @@ async function introspectColumns(typeName: string, visited = new Set<string>()) 
 
     field.isConnection = false;
     field.nodeType = null;
-    field.filterType = null;
-    field.orderByType = null;
-    field.displayMode = "collapsed";
-    field.pivotField = null;
-    field.valueField = null;
     field.displayField = null; // for FK OBJECTs: which sub-field to show (e.g. "name")
 
     // Connection detection: if the resolved type ends with "Connection",
     // this is a backward/many relationship using Relay's connection pattern.
-    // Extract filter/orderBy types from the field's args for future lazy-loading,
-    // and resolve the inner node type so the user sees the real type, not the envelope.
+    // Resolve the inner node type so the user sees the real type, not the envelope.
     if (innerKind === "OBJECT" && innerName?.endsWith("Connection")) {
       field.isConnection = true;
-
-      // Extract filter INPUT_OBJECT type name from args (e.g. "ToolMetricNodeToolMetricFilterFilterInputType")
-      const filterArg = field.args?.find((a: any) => a.name === "filter");
-      if (filterArg) field.filterType = unwrapType(filterArg.type).innerName;
-
-      // Extract orderBy INPUT_OBJECT type name from args
-      const orderByArg = field.args?.find((a: any) => a.name === "orderBy");
-      if (orderByArg) field.orderByType = unwrapType(orderByArg.type).innerName;
 
       // Resolve Connection → Edge → Node to get the actual node type name
       const nodeTypeName = await resolveConnectionNodeType(innerName);
@@ -829,7 +805,7 @@ const {
   result: a_r,
   loading: a_l,
   error: a_e,
-  refetch: a_get,
+  refetch: a_get, // not used
 } = useQuery(queryDoc, queryVariables);
 
 /**
@@ -1190,15 +1166,6 @@ function goToPage(n: number) {
                   </tr>
                 </tbody>
               </table>
-            </div>
-          </li>
-
-          <!-- Columns -->
-          <li class="list-group-item">
-            <div class="d-flex align-items-center justify-content-between">
-              <h5 class="m-0">
-                <b>{{ activeSortPaths.length }} Columns</b>
-              </h5>
             </div>
           </li>
 
@@ -1623,7 +1590,7 @@ function goToPage(n: number) {
             :value="page_size"
             min="1"
             @change="
-              page_size = Math.abs(+($event.target as HTMLInputElement).value);
+              page_size = Math.max(1, Math.floor(Math.abs(+($event.target as HTMLInputElement).value)) || 1);
               get();
             "
           />

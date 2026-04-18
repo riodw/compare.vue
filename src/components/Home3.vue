@@ -436,19 +436,11 @@ async function initColumnsFrom(rootField: any) {
 // Filters and sorts are fire-and-forget; columns must finish before get() so the initial
 // query has an accurate edges.node selection.
 watch(q_r, (value) => {
-  let args: any[];
-  try {
-    args = value?.__type?.fields?.find((field: any) => field.name === ROOT)?.args;
-  } catch (error) {
-    console.error(error);
-    return;
-  }
-  args = stripTypename(args) || [];
+  const rootField = value?.__type?.fields?.find((field: any) => field.name === ROOT);
+  const args = stripTypename(rootField?.args) || [];
 
   initFiltersFrom(args);
   initSortsFrom(args);
-
-  const rootField = value?.__type?.fields?.find((field: any) => field.name === ROOT);
   initColumnsFrom(rootField);
 });
 

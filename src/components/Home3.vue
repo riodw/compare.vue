@@ -218,28 +218,47 @@ const columns_query = makeTypeQuery({
 const { resolveClient } = useApolloClient();
 
 /**
+ * Shared introspection preamble — the truly identical prefix of both walkers:
+ *   1. Run `query` with { name: typeName } (cache-first)
+ *   2. Bail (return null) if the result lacks the expected `[fieldsKey]` list
+ *   3. Strip __typename recursively
+ *   4. Drop envelope fields whose names are in `envelopeNames`
+ *
+ * Returns the decorated type object ready for per-walker field decoration + store upsert,
+ * or null if the type isn't found or has no fields of the expected shape.
+ */
+async function fetchType(
+  typeName: string,
+  query: any,
+  fieldsKey: "inputFields" | "fields",
+  envelopeNames: string[],
+): Promise<any | null> {
+  const client = resolveClient();
+  const { data } = await client.query({
+    query: gql(jtg(query)),
+    variables: { name: typeName },
+    fetchPolicy: "cache-first",
+  });
+  if (!data?.__type?.[fieldsKey]) return null;
+
+  const typeObj = stripTypename(data.__type);
+  typeObj[fieldsKey] = typeObj[fieldsKey].filter(
+    (f: any) => !envelopeNames.includes(f.name),
+  );
+  return typeObj;
+}
+
+/**
  * Walk an INPUT_OBJECT type graph, storing each type in the mode's store.
  * Each type and its inputFields get `on`/`value` UI state.
  * "filters" = filter introspection, "sorts" = order introspection.
  * All sibling branches at each level are fetched in parallel via Promise.all.
  */
 async function introspect(typeName: string, mode: "filters" | "sorts") {
-  const client = resolveClient();
+  const inf = await fetchType(typeName, input_query, "inputFields", NON_MODEL_ARGS);
+  if (!inf) return;
+
   const store = { filters, sorts }[mode];
-
-  const { data } = await client.query({
-    query: gql(jtg(input_query)),
-    variables: { name: typeName },
-    fetchPolicy: "cache-first",
-  });
-
-  if (!data?.__type?.inputFields) return;
-
-  let inf = stripTypename(data.__type);
-  // Strip envelope args from the inputFields list
-  inf.inputFields = inf.inputFields.filter(
-    (o: any) => !NON_MODEL_ARGS.includes(o.name)
-  );
 
   // Initialize UI toggle state on the type and each field
   inf.on = false;
@@ -338,22 +357,8 @@ async function introspectColumns(typeName: string, visited = new Set<string>()) 
   if (visited.has(typeName)) return;
   visited.add(typeName);
 
-  const client = resolveClient();
-
-  const { data } = await client.query({
-    query: gql(jtg(columns_query)),
-    variables: { name: typeName },
-    fetchPolicy: "cache-first",
-  });
-
-  if (!data?.__type?.fields) return;
-
-  let typeObj = stripTypename(data.__type);
-
-  // Strip connection envelope fields
-  typeObj.fields = typeObj.fields.filter(
-    (f: any) => !CONNECTION_FIELDS.includes(f.name)
-  );
+  const typeObj = await fetchType(typeName, columns_query, "fields", CONNECTION_FIELDS);
+  if (!typeObj) return;
 
   // Process each field: resolve types, detect connections, extract metadata
   for (const field of typeObj.fields) {

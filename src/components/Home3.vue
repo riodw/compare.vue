@@ -30,32 +30,35 @@ const search = ref("");          // global search input
 const show_filters = ref(true);  // toggle the filters/sorts panel
 const page_size = ref(100);      // results per page
 
+// Single search input for whichever Add dropdown (filter/sort/column) is currently open.
+// Only one dropdown is ever visible at a time, so one shared ref is enough.
+const search_dropdown = ref("");
+
 // ---- Filters ----
 const filter_root = ref("");     // root INPUT_OBJECT type name (e.g. "ToolFilter")
 const filters = ref<any[]>([]);  // flat store of all introspected filter INPUT_OBJECT types
-const search_fields = ref("");   // search text inside the "Add Filter" dropdown
 
 // ---- Sorts ----
 const sort_root = ref("");           // root INPUT_OBJECT type name (e.g. "ToolOrder")
 const sort_var_type = ref("");       // full GraphQL variable type string e.g. "[ToolOrder!]"
 const sorts = ref<any[]>([]);        // flat store of all introspected sort INPUT_OBJECT types
-const search_sorts = ref("");        // search text inside the "Add Sort" dropdown
 const sort_path_order = ref<string[]>([]);       // user's drag-and-drop sort priority (path keys)
 const {
   dragIdx: drag_sort_idx,
   dragOverIdx: drag_over_sort_idx,
   onDrop: onSortDrop,
+  reset: resetSortDrag,
 } = makeDragReorder(sort_path_order, get);
 
 // ---- Columns ----
 const column_root = ref("");              // root OBJECT type name (e.g. "ToolNode")
 const columns = ref<any[]>([]);           // flat store of introspected OBJECT types
 const column_order = ref<string[]>([]);   // user's drag-and-drop column order (field names)
-const search_columns = ref("");           // search text inside the "Add Column" dropdown
 const {
   dragIdx: drag_col_idx,
   dragOverIdx: drag_over_col_idx,
   onDrop: onColumnDrop,
+  reset: resetColumnDrag,
 } = makeDragReorder(column_order, get);
 
 // Connection envelope fields to strip during column introspection
@@ -94,8 +97,12 @@ function syncOrder<T>(items: T[], orderRef: Ref<string[]>, keyFn: (x: T) => stri
   }
 }
 
-/** Focus the search input inside a dropdown menu sibling of the trigger button, once Vue flushes. */
+/**
+ * Reset the shared dropdown search text and focus the dropdown's input once Vue flushes.
+ * Called from every "Add X" button — the three dropdowns share one search ref.
+ */
 function focusDropdownInput(ev: Event) {
+  search_dropdown.value = "";
   const trigger = ev.currentTarget as HTMLElement | null;
   nextTick(() =>
     trigger?.nextElementSibling?.querySelector<HTMLInputElement>("input")?.focus()
@@ -106,18 +113,18 @@ function focusDropdownInput(ev: Event) {
 function makeDragReorder(orderRef: Ref<string[]>, onChange?: () => void) {
   const dragIdx = ref<number | null>(null);
   const dragOverIdx = ref<number | null>(null);
+  function reset() { dragIdx.value = null; dragOverIdx.value = null; }
   function onDrop(idx: number) {
     const from = dragIdx.value;
-    if (from === null || from === idx) return;
+    if (from === null || from === idx) return reset();
     const order = [...orderRef.value];
     const [moved] = order.splice(from, 1);
     if (moved !== undefined) order.splice(idx, 0, moved);
     orderRef.value = order;
-    dragIdx.value = null;
-    dragOverIdx.value = null;
+    reset();
     onChange?.();
   }
-  return { dragIdx, dragOverIdx, onDrop };
+  return { dragIdx, dragOverIdx, onDrop, reset };
 }
 
 // ================================================================
@@ -180,6 +187,9 @@ const {
   loading: q_l,
   error: q_e,
 } = useQuery(gql(jtg(fields_query)));
+
+/** True while the schema introspection is loading or errored — gates the Add buttons. */
+const introspecting = computed(() => !!(q_l.value || q_e.value));
 
 /** Recursively peel NON_NULL and LIST wrappers to find the inner type name and kind. */
 function unwrapType(t: any): { varType: string; innerName: string; innerKind: string } {
@@ -466,14 +476,18 @@ async function introspectColumns(typeName: string, visited = new Set<string>()) 
 //    and laying them out as a grid with merged rowspans.
 // ================================================================
 
-// Registry of the two path-based UI modes (filter tree vs. sort tree).
-// Each mode has a flat type store, a root type-name ref, and a dropdown search ref.
-// Collapses the repeated `{ filters, sorts }[mode]` dispatch in enable/topLevel/searchFieldsFn/activePaths/addNext.
+// Registry of the three UI panels (filter tree / sort tree / column list).
+// `fieldsKey` differs because filter/sort root types are INPUT_OBJECTs (`inputFields`)
+// while the column root type is an OBJECT (`fields`).
+// `PanelKind` covers all three; `Mode` is the narrower path-based subset used by
+// enable / activePaths / addNext / changeNode.
 const MODES = {
-  filters: { store: filters, root: filter_root, search: search_fields },
-  sorts: { store: sorts, root: sort_root, search: search_sorts },
+  filters: { store: filters, root: filter_root, fieldsKey: "inputFields" as const },
+  sorts: { store: sorts, root: sort_root, fieldsKey: "inputFields" as const },
+  columns: { store: columns, root: column_root, fieldsKey: "fields" as const },
 };
-type Mode = keyof typeof MODES;
+type PanelKind = keyof typeof MODES;
+type Mode = "filters" | "sorts";
 
 /**
  * Toggle a field on and cascade-open the first child at each level.
@@ -529,23 +543,21 @@ function cellConnectionLines(col: any, row: any): string[] {
   );
 }
 
-/** Get the root-level inputFields for a given mode's "Add" dropdown */
-function topLevel(mode: Mode) {
-  const { store, root } = MODES[mode];
-  return (
-    store.value.find((o: any) => o.name === root.value)?.inputFields || []
-  );
+/** Root-level fields of a panel's root type. Uses `inputFields` for filter/sort, `fields` for columns. */
+function topLevel(kind: PanelKind) {
+  const { store, root, fieldsKey } = MODES[kind];
+  return store.value.find((o: any) => o.name === root.value)?.[fieldsKey] || [];
 }
 
 /** Filter a list of {name, on} items to those not active whose name matches search. */
 function filterAvailable(items: any[], searchStr: string) {
-  const q = searchStr.toLowerCase();
+  const q = searchStr.toLowerCase().trim();
   return items.filter((x: any) => !x.on && x.name.toLowerCase().includes(q));
 }
 
-/** Filter the dropdown items by the search text, excluding already-active fields */
-function searchFieldsFn(mode: Mode) {
-  return filterAvailable(topLevel(mode), MODES[mode].search.value);
+/** Dropdown items for an "Add X" panel: available (non-active) root fields matching the shared search. */
+function searchFieldsFn(kind: PanelKind) {
+  return filterAvailable(topLevel(kind), search_dropdown.value);
 }
 
 /**
@@ -657,20 +669,25 @@ const filterGrid = computed(() => {
   return grid;
 });
 
-/** Swap the selected node at a given level to a different option (via select change) */
+/** Swap the selected node at a given level to a different option (via select change) and refetch. */
 function changeNode(level: any, event: Event, mode: Mode) {
   const target = event.target as HTMLSelectElement;
   if (!target) return;
   const newOptionName = target.value;
   if (level.selected.name === newOptionName) return;
 
-  // Deactivate old branch, activate new one — callers in the template call get() explicitly
+  // Deactivate old branch, activate new one
   level.selected.on = false;
   const newOption = level.options.find((o: any) => o.name === newOptionName);
   if (newOption) enable(newOption, mode);
+  get();
 }
 
-/** Expand the next unused sibling field within a branch */
+/**
+ * Expand the next unused sibling field within a branch.
+ * For sorts: the new leaf defaults to "ASC" and is immediately queryable, so refetch.
+ * For filters: the new leaf is blank and doesn't affect the query until the user types — no refetch.
+ */
 function addNext(level: any, mode: Mode) {
   if (!level.selected.type?.name) return;
   const obj = MODES[mode].store.value.find(
@@ -678,15 +695,17 @@ function addNext(level: any, mode: Mode) {
   );
   const nextField = obj?.inputFields?.find((f: any) => !f.on);
   if (nextField) enable(nextField, mode);
+  if (mode === "sorts") get();
 }
 
-/** Walk backwards along a path turning off nodes; stop when a sibling is still active. Pure state mutation. */
+/** Walk backwards along a path turning off nodes; stop when a sibling is still active. Triggers a refetch. */
 function deletePath(path: any[]) {
   for (let i = path.length - 1; i >= 0; i--) {
     const level = path[i];
     level.selected.on = false;
     if (level.options.some((opt: any) => opt.on)) break;
   }
+  get();
 }
 
 // ================================================================
@@ -763,10 +782,10 @@ function disableColumn(field: any) {
   get();
 }
 
-/** Get all available (non-active) columns for the "Add Column" dropdown, filtered by search */
-function availableColumns() {
-  const rootType = columns.value.find((c: any) => c.name === column_root.value);
-  return filterAvailable(rootType?.fields || [], search_columns.value);
+/** Update an FK column's selected display sub-field and refetch. */
+function setDisplayField(col: any, value: string) {
+  col.displayField = value;
+  get();
 }
 
 /** Get the scalar sub-fields of an FK column's related type (for the display field dropdown) */
@@ -775,6 +794,41 @@ function getSubFields(col: any) {
   if (!related?.fields) return [];
   return related.fields.filter((f: any) => f.resolvedTypeKind === "SCALAR");
 }
+
+/**
+ * Config driving the three Filter / Sort / Column UI panels.
+ * Each panel shares the same header shape (count + "Add X" dropdown) and a collapsed-summary entry;
+ * the body (filter grid, sort rows, column rows) is rendered per-kind inline in the template.
+ */
+const panels: Array<{
+  kind: PanelKind;
+  label: string;
+  labelPlural: string;
+  count: () => number;
+  add: (f: any) => void;
+}> = [
+  {
+    kind: "filters",
+    label: "Filter",
+    labelPlural: "Filters",
+    count: () => activeFilterPaths.value.length,
+    add: (f) => enable(f, "filters"),
+  },
+  {
+    kind: "sorts",
+    label: "Sort",
+    labelPlural: "Sorts",
+    count: () => activeSortPaths.value.length,
+    add: (f) => { enable(f, "sorts"); get(); },
+  },
+  {
+    kind: "columns",
+    label: "Column",
+    labelPlural: "Columns",
+    count: () => orderedColumns.value.length,
+    add: (f) => enableColumn(f),
+  },
+];
 
 // ================================================================
 // 3. MAIN LIVE DATA QUERY
@@ -984,37 +1038,44 @@ function goToPage(n: number) {
       <!-- FILTERS & SORTS PANEL -->
       <div v-if="!q_e" class="card mb-4">
         <ul v-if="show_filters" class="list-group list-group-flush">
-          <!-- Filters -->
-          <li class="list-group-item">
-            <!-- Filter topbar: count + "Add Filter" dropdown -->
-            <div class="d-flex align-items-center justify-content-between">
+          <!-- Filter / Sort / Column panels: one <li> per entry in panels[] -->
+          <li
+            v-for="panel in panels"
+            :key="panel.kind"
+            class="list-group-item"
+          >
+            <!-- Shared header: count + "Add X" dropdown -->
+            <div
+              class="d-flex align-items-center justify-content-between"
+              :class="{ 'mb-2': panel.kind === 'columns' }"
+            >
               <h5 class="m-0">
-                <b>{{ activeFilterPaths.length }} Filters</b>
+                <b>{{ panel.count() }} {{ panel.labelPlural }}</b>
               </h5>
               <div class="dropdown">
                 <button
                   class="btn btn-primary btn-sm"
                   data-bs-toggle="dropdown"
                   aria-expanded="false"
-                  :disabled="!!(q_l || q_e)"
-                  @click="search_fields = ''; focusDropdownInput($event)"
+                  :disabled="introspecting"
+                  @click="focusDropdownInput($event)"
                 >
                   <i class="bi bi-plus-lg"></i>
-                  Filter
+                  {{ panel.label }}
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                   <li class="mx-2 mb-1">
                     <input
-                      v-model="search_fields"
+                      v-model="search_dropdown"
                       class="form-control py-1"
                       type="text"
-                      :placeholder="topLevel('filters').length + ' Filters...'"
+                      :placeholder="topLevel(panel.kind).length + ' ' + panel.labelPlural + '...'"
                     />
                   </li>
-                  <li v-for="f in searchFieldsFn('filters')" :key="f.name">
+                  <li v-for="f in searchFieldsFn(panel.kind)" :key="f.name">
                     <button
                       class="dropdown-item text-capitalize"
-                      @click="enable(f, 'filters')"
+                      @click="panel.add(f)"
                     >
                       {{ camel(f.name) }}
                     </button>
@@ -1025,7 +1086,7 @@ function goToPage(n: number) {
 
             <!-- Filter grid: each row is one active filter path -->
             <div
-              v-if="filterGrid.length"
+              v-if="panel.kind === 'filters' && filterGrid.length"
               class="border-top pt-2 mt-2 overflow-x-auto"
             >
               <table cellpadding="0" cellspacing="0">
@@ -1061,10 +1122,7 @@ function goToPage(n: number) {
                         <td v-else :rowspan="cell.rowSpan" style="height: 1px">
                           <select
                             :value="cell.level.selected.name"
-                            @change="
-                              changeNode(cell.level, $event, 'filters');
-                              get();
-                            "
+                            @change="changeNode(cell.level, $event, 'filters')"
                             class="btn btn-outline-secondary btn-sm text-capitalize border-secondary text-center rounded-0 h-100 w-100 d-print-none"
                             style="min-height: 31px"
                           >
@@ -1120,10 +1178,7 @@ function goToPage(n: number) {
                       <button
                         class="btn btn-outline-danger btn-sm rounded-end-pill d-print-none"
                         style="height: 100%; min-height: 31px"
-                        @click="
-                          deletePath(activeFilterPaths[rIdx] || []);
-                          get();
-                        "
+                        @click="deletePath(activeFilterPaths[rIdx] || [])"
                       >
                         <i class="bi bi-trash3"></i>
                       </button>
@@ -1132,52 +1187,10 @@ function goToPage(n: number) {
                 </tbody>
               </table>
             </div>
-          </li>
-
-          <!-- Sorts -->
-          <li class="list-group-item">
-            <div class="d-flex align-items-center justify-content-between">
-              <h5 class="m-0">
-                <b>{{ activeSortPaths.length }} Sorts</b>
-              </h5>
-              <div class="dropdown">
-                <button
-                  class="btn btn-primary btn-sm"
-                  data-bs-toggle="dropdown"
-                  aria-expanded="false"
-                  :disabled="!!(q_l || q_e)"
-                  @click="search_sorts = ''; focusDropdownInput($event)"
-                >
-                  <i class="bi bi-plus-lg"></i>
-                  Sort
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end">
-                  <li class="mx-2 mb-1">
-                    <input
-                      v-model="search_sorts"
-                      class="form-control py-1"
-                      type="text"
-                      :placeholder="topLevel('sorts').length + ' Sorts...'"
-                    />
-                  </li>
-                  <li v-for="f in searchFieldsFn('sorts')" :key="f.name">
-                    <button
-                      class="dropdown-item text-capitalize"
-                      @click="
-                        enable(f, 'sorts');
-                        get();
-                      "
-                    >
-                      {{ camel(f.name) }}
-                    </button>
-                  </li>
-                </ul>
-              </div>
-            </div>
 
             <!-- Sort rows: each row is a self-contained draggable path -->
             <div
-              v-if="orderedSortPaths.length"
+              v-else-if="panel.kind === 'sorts' && orderedSortPaths.length"
               class="border-top pt-2 mt-2 overflow-x-auto"
             >
               <table cellpadding="0" cellspacing="0">
@@ -1190,10 +1203,7 @@ function goToPage(n: number) {
                     @dragover.prevent="drag_over_sort_idx = rIdx"
                     @dragleave="drag_over_sort_idx = null"
                     @drop="onSortDrop(rIdx)"
-                    @dragend="
-                      drag_sort_idx = null;
-                      drag_over_sort_idx = null;
-                    "
+                    @dragend="resetSortDrag()"
                     :style="{
                       opacity: drag_sort_idx === rIdx ? 0.3 : 1,
                     }"
@@ -1228,10 +1238,7 @@ function goToPage(n: number) {
                         <button
                           class="btn btn-outline-primary btn-sm text-capitalize w-100 rounded-start-pill px-3 h-100"
                           style="min-height: 31px"
-                          @click="
-                            addNext(level, 'sorts');
-                            get();
-                          "
+                          @click="addNext(level, 'sorts')"
                         >
                           {{ camel(level.selected.name) }}
                         </button>
@@ -1240,10 +1247,7 @@ function goToPage(n: number) {
                       <td v-else style="height: 1px">
                         <select
                           :value="level.selected.name"
-                          @change="
-                            changeNode(level, $event, 'sorts');
-                            get();
-                          "
+                          @change="changeNode(level, $event, 'sorts')"
                           class="btn btn-outline-secondary btn-sm text-capitalize border-secondary text-center rounded-0 h-100 w-100"
                           style="min-height: 31px"
                         >
@@ -1274,10 +1278,7 @@ function goToPage(n: number) {
                       <button
                         class="btn btn-outline-danger btn-sm rounded-end-pill d-print-none"
                         style="height: 100%; min-height: 31px"
-                        @click="
-                          deletePath(path);
-                          get();
-                        "
+                        @click="deletePath(path)"
                       >
                         <i class="bi bi-trash3"></i>
                       </button>
@@ -1286,51 +1287,10 @@ function goToPage(n: number) {
                 </tbody>
               </table>
             </div>
-          </li>
-
-          <!-- Columns panel: add/remove/reorder visible table columns -->
-          <li class="list-group-item">
-            <div
-              class="d-flex align-items-center justify-content-between mb-2"
-            >
-              <h5 class="m-0">
-                <b>{{ orderedColumns.length }} Columns</b>
-              </h5>
-              <div class="dropdown">
-                <button
-                  class="btn btn-primary btn-sm"
-                  data-bs-toggle="dropdown"
-                  aria-expanded="false"
-                  :disabled="!!(q_l || q_e)"
-                  @click="search_columns = ''; focusDropdownInput($event)"
-                >
-                  <i class="bi bi-plus-lg"></i>
-                  Column
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end">
-                  <li class="mx-2 mb-1">
-                    <input
-                      v-model="search_columns"
-                      class="form-control py-1"
-                      type="text"
-                      :placeholder="availableColumns().length + ' Columns...'"
-                    />
-                  </li>
-                  <li v-for="f in availableColumns()" :key="f.name">
-                    <button
-                      class="dropdown-item text-capitalize"
-                      @click="enableColumn(f)"
-                    >
-                      {{ camel(f.name) }}
-                    </button>
-                  </li>
-                </ul>
-              </div>
-            </div>
 
             <!-- Column rows: each row is a draggable column entry -->
             <div
-              v-if="orderedColumns.length"
+              v-else-if="panel.kind === 'columns' && orderedColumns.length"
               class="border-top pt-2 mt-2 overflow-x-auto"
             >
               <table cellpadding="0" cellspacing="0">
@@ -1343,10 +1303,7 @@ function goToPage(n: number) {
                     @dragover.prevent="drag_over_col_idx = rIdx"
                     @dragleave="drag_over_col_idx = null"
                     @drop="onColumnDrop(rIdx)"
-                    @dragend="
-                      drag_col_idx = null;
-                      drag_over_col_idx = null;
-                    "
+                    @dragend="resetColumnDrag()"
                     :style="{
                       opacity: drag_col_idx === rIdx ? 0.3 : 1,
                     }"
@@ -1387,10 +1344,7 @@ function goToPage(n: number) {
                     >
                       <select
                         :value="col.displayField"
-                        @change="
-                          col.displayField = ($event.target as HTMLSelectElement).value;
-                          get();
-                        "
+                        @change="setDisplayField(col, ($event.target as HTMLSelectElement).value)"
                         class="btn btn-outline-secondary btn-sm text-capitalize border-secondary text-center rounded-0 h-100 w-100"
                         style="min-height: 31px"
                       >
@@ -1436,9 +1390,9 @@ function goToPage(n: number) {
           <li
             class="list-group-item d-flex align-items-center justify-content-between"
           >
-            <b>{{ activeFilterPaths.length }} Filters</b>
-            <b>{{ orderedColumns.length }} Columns</b>
-            <b>{{ activeSortPaths.length }} Sorts</b>
+            <b v-for="panel in panels" :key="panel.kind">
+              {{ panel.count() }} {{ panel.labelPlural }}
+            </b>
           </li>
           <li
             class="list-group-item d-flex align-items-center justify-content-center text-center p-0 d-print-none"

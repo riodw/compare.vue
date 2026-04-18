@@ -761,11 +761,9 @@ const activeColumns = computed(() => {
   return rootType.fields.filter((f: any) => f.on);
 });
 
-const columnKey = (c: any) => c.name;
-
 /** Active columns reordered by the user's drag-and-drop order. */
 const orderedColumns = computed(() =>
-  applyOrder(activeColumns.value, column_order.value, columnKey)
+  applyOrder(activeColumns.value, column_order.value, (c: any) => c.name)
 );
 
 /** Enable a column and trigger a refetch */
@@ -798,7 +796,7 @@ function getSubFields(col: any) {
 // ----------------------------------------------------------------
 
 watch(activeSortPaths, (paths) => syncOrder(paths, sort_path_order, sortPathKey));
-watch(activeColumns, (cols) => syncOrder(cols, column_order, columnKey));
+watch(activeColumns, (cols) => syncOrder(cols, column_order, (c: any) => c.name));
 
 // ----------------------------------------------------------------
 // 2f. Panels config — drives the three panels' v-for in the template

@@ -30,7 +30,14 @@ const NON_MODEL_ARGS = [
 ];
 
 // Relay envelope fields stripped during column object introspection.
-const CONNECTION_FIELDS = ["edges", "node", "pageInfo", "cursor", "count", "counts"];
+const CONNECTION_FIELDS = [
+  "edges",
+  "node",
+  "pageInfo",
+  "cursor",
+  "count",
+  "counts",
+];
 
 // ================================================================
 // STATE
@@ -40,24 +47,24 @@ const CONNECTION_FIELDS = ["edges", "node", "pageInfo", "cursor", "count", "coun
 // ================================================================
 
 // ---- Global State ----
-const search = ref("");             // global search input
-const show_filters = ref(true);     // toggle the filters/sorts panel
-const page_size = ref(100);         // results per page
-const paginationOffset = ref(0);    // zero-based offset into the result set (pagination source of truth)
+const search = ref(""); // global search input
+const show_filters = ref(true); // toggle the filters/sorts panel
+const page_size = ref(100); // results per page
+const paginationOffset = ref(0); // zero-based offset into the result set (pagination source of truth)
 
 // Single search input for whichever Add dropdown (filter/sort/column) is currently open.
 // Only one dropdown is ever visible at a time, so one shared ref is enough.
 const search_dropdown = ref("");
 
 // ---- Filters ----
-const filter_root = ref("");     // root INPUT_OBJECT type name (e.g. "ToolFilter")
-const filters = ref<any[]>([]);  // flat store of all introspected filter INPUT_OBJECT types
+const filter_root = ref(""); // root INPUT_OBJECT type name (e.g. "ToolFilter")
+const filters = ref<any[]>([]); // flat store of all introspected filter INPUT_OBJECT types
 
 // ---- Sorts ----
-const sort_root = ref("");           // root INPUT_OBJECT type name (e.g. "ToolOrder")
-const sort_var_type = ref("");       // full GraphQL variable type string e.g. "[ToolOrder!]"
-const sorts = ref<any[]>([]);        // flat store of all introspected sort INPUT_OBJECT types
-const sort_path_order = ref<string[]>([]);       // user's drag-and-drop sort priority (path keys)
+const sort_root = ref(""); // root INPUT_OBJECT type name (e.g. "ToolOrder")
+const sort_var_type = ref(""); // full GraphQL variable type string e.g. "[ToolOrder!]"
+const sorts = ref<any[]>([]); // flat store of all introspected sort INPUT_OBJECT types
+const sort_path_order = ref<string[]>([]); // user's drag-and-drop sort priority (path keys)
 const {
   dragIdx: drag_sort_idx,
   dragOverIdx: drag_over_sort_idx,
@@ -66,9 +73,9 @@ const {
 } = makeDragReorder(sort_path_order, get);
 
 // ---- Columns ----
-const column_root = ref("");              // root OBJECT type name (e.g. "ToolNode")
-const columns = ref<any[]>([]);           // flat store of introspected OBJECT types
-const column_order = ref<string[]>([]);   // user's drag-and-drop column order (field names)
+const column_root = ref(""); // root OBJECT type name (e.g. "ToolNode")
+const columns = ref<any[]>([]); // flat store of introspected OBJECT types
+const column_order = ref<string[]>([]); // user's drag-and-drop column order (field names)
 const {
   dragIdx: drag_col_idx,
   dragOverIdx: drag_over_col_idx,
@@ -98,23 +105,43 @@ const stripTypename = (obj: any): any => {
 };
 
 /** Recursively peel NON_NULL and LIST wrappers to find the inner type name and kind. */
-function unwrapType(t: any): { varType: string; innerName: string; innerKind: string } {
+function unwrapType(t: any): {
+  varType: string;
+  innerName: string;
+  innerKind: string;
+} {
   if (!t) return { varType: "", innerName: "", innerKind: "" };
   if (t.kind === "NON_NULL") {
     const inner = unwrapType(t.ofType);
-    return { varType: inner.varType + "!", innerName: inner.innerName, innerKind: inner.innerKind };
+    return {
+      varType: inner.varType + "!",
+      innerName: inner.innerName,
+      innerKind: inner.innerKind,
+    };
   }
   if (t.kind === "LIST") {
     const inner = unwrapType(t.ofType);
-    return { varType: `[${inner.varType}]`, innerName: inner.innerName, innerKind: inner.innerKind };
+    return {
+      varType: `[${inner.varType}]`,
+      innerName: inner.innerName,
+      innerKind: inner.innerKind,
+    };
   }
-  return { varType: t.name || "", innerName: t.name || "", innerKind: t.kind || "" };
+  return {
+    varType: t.name || "",
+    innerName: t.name || "",
+    innerKind: t.kind || "",
+  };
 }
 
 // Shared type-ref fragments for introspection queries.
 // typeRef2 covers LIST(NON_NULL(Type)) — enough for INPUT_OBJECT field types.
 // typeRef3 adds one more level of nesting for NON_NULL(LIST(NON_NULL(Type))) — used by OBJECT fields/args.
-const typeRef2 = { kind: true, name: true, ofType: { kind: true, name: true } };
+const typeRef2 = {
+  kind: true,
+  name: true,
+  ofType: { kind: true, name: true },
+};
 const typeRef3 = { kind: true, name: true, ofType: typeRef2 };
 
 /** Build an introspection query envelope for `__type(name: $name)` with a custom selection set. */
@@ -231,7 +258,7 @@ async function fetchType(
   typeName: string,
   query: any,
   fieldsKey: "inputFields" | "fields",
-  envelopeNames: string[],
+  envelopeNames: string[]
 ): Promise<any | null> {
   const client = resolveClient();
   const { data } = await client.query({
@@ -243,7 +270,7 @@ async function fetchType(
 
   const typeObj = stripTypename(data.__type);
   typeObj[fieldsKey] = typeObj[fieldsKey].filter(
-    (f: any) => !envelopeNames.includes(f.name),
+    (f: any) => !envelopeNames.includes(f.name)
   );
   return typeObj;
 }
@@ -255,7 +282,12 @@ async function fetchType(
  * All sibling branches at each level are fetched in parallel via Promise.all.
  */
 async function introspect(typeName: string, mode: "filters" | "sorts") {
-  const inf = await fetchType(typeName, input_query, "inputFields", NON_MODEL_ARGS);
+  const inf = await fetchType(
+    typeName,
+    input_query,
+    "inputFields",
+    NON_MODEL_ARGS
+  );
   if (!inf) return;
 
   const store = { filters, sorts }[mode];
@@ -316,7 +348,9 @@ function initSortsFrom(args: any[]) {
  * Resolve a Relay Connection type to its inner node type name.
  * Follows: ConnectionType → edges field → EdgeType → node field → NodeType
  */
-async function resolveConnectionNodeType(connectionTypeName: string): Promise<string | null> {
+async function resolveConnectionNodeType(
+  connectionTypeName: string
+): Promise<string | null> {
   const client = resolveClient();
 
   // Step 1: Introspect the Connection type to find its "edges" field
@@ -327,7 +361,9 @@ async function resolveConnectionNodeType(connectionTypeName: string): Promise<st
   });
   if (!data?.__type?.fields) return null;
 
-  const edgesField = stripTypename(data.__type.fields).find((f: any) => f.name === "edges");
+  const edgesField = stripTypename(data.__type.fields).find(
+    (f: any) => f.name === "edges"
+  );
   if (!edgesField) return null;
 
   // Step 2: Introspect the Edge type to find its "node" field
@@ -342,7 +378,9 @@ async function resolveConnectionNodeType(connectionTypeName: string): Promise<st
   if (!edgeData?.__type?.fields) return null;
 
   // Step 3: Return the node's inner type name (e.g. "ToolMetricNode")
-  const nodeField = stripTypename(edgeData.__type.fields).find((f: any) => f.name === "node");
+  const nodeField = stripTypename(edgeData.__type.fields).find(
+    (f: any) => f.name === "node"
+  );
   if (!nodeField) return null;
 
   return unwrapType(nodeField.type).innerName;
@@ -353,11 +391,19 @@ async function resolveConnectionNodeType(connectionTypeName: string): Promise<st
  * Detects Relay connection patterns and unwraps them transparently.
  * Uses a visited set to prevent infinite loops on circular type references.
  */
-async function introspectColumns(typeName: string, visited = new Set<string>()) {
+async function introspectColumns(
+  typeName: string,
+  visited = new Set<string>()
+) {
   if (visited.has(typeName)) return;
   visited.add(typeName);
 
-  const typeObj = await fetchType(typeName, columns_query, "fields", CONNECTION_FIELDS);
+  const typeObj = await fetchType(
+    typeName,
+    columns_query,
+    "fields",
+    CONNECTION_FIELDS
+  );
   if (!typeObj) return;
 
   // Process each field: resolve types, detect connections, extract metadata
@@ -385,8 +431,11 @@ async function introspectColumns(typeName: string, visited = new Set<string>()) 
   }
 
   // Upsert into the flat store
-  const existingIndex = columns.value.findIndex((c: any) => c.name === typeObj.name);
-  if (existingIndex !== -1) Object.assign(columns.value[existingIndex], typeObj);
+  const existingIndex = columns.value.findIndex(
+    (c: any) => c.name === typeObj.name
+  );
+  if (existingIndex !== -1)
+    Object.assign(columns.value[existingIndex], typeObj);
   else columns.value.push(typeObj);
 
   // Recurse into OBJECT children in parallel
@@ -420,9 +469,17 @@ async function initColumnsFrom(rootField: any) {
     for (const field of rootType.fields) {
       if (field.resolvedTypeKind === "SCALAR") field.on = true;
       // Default displayField for FK columns to the first scalar child
-      if (field.resolvedTypeKind === "OBJECT" && !field.isConnection && field.resolvedTypeName) {
-        const related = columns.value.find((c: any) => c.name === field.resolvedTypeName);
-        const firstScalar = related?.fields?.find((rf: any) => rf.resolvedTypeKind === "SCALAR");
+      if (
+        field.resolvedTypeKind === "OBJECT" &&
+        !field.isConnection &&
+        field.resolvedTypeName
+      ) {
+        const related = columns.value.find(
+          (c: any) => c.name === field.resolvedTypeName
+        );
+        const firstScalar = related?.fields?.find(
+          (rf: any) => rf.resolvedTypeKind === "SCALAR"
+        );
         if (firstScalar) field.displayField = firstScalar.name;
       }
     }
@@ -441,7 +498,9 @@ async function initColumnsFrom(rootField: any) {
 // Filters and sorts are fire-and-forget; columns must finish before get() so the initial
 // query has an accurate edges.node selection.
 watch(q_r, (value) => {
-  const rootField = value?.__type?.fields?.find((field: any) => field.name === ROOT);
+  const rootField = value?.__type?.fields?.find(
+    (field: any) => field.name === ROOT
+  );
   const args = stripTypename(rootField?.args) || [];
 
   initFiltersFrom(args);
@@ -480,7 +539,9 @@ function focusDropdownInput(ev: Event) {
   search_dropdown.value = "";
   const trigger = ev.currentTarget as HTMLElement | null;
   nextTick(() =>
-    trigger?.nextElementSibling?.querySelector<HTMLInputElement>("input")?.focus()
+    trigger?.nextElementSibling
+      ?.querySelector<HTMLInputElement>("input")
+      ?.focus()
   );
 }
 
@@ -488,7 +549,10 @@ function focusDropdownInput(ev: Event) {
 function makeDragReorder(orderRef: Ref<string[]>, onChange?: () => void) {
   const dragIdx = ref<number | null>(null);
   const dragOverIdx = ref<number | null>(null);
-  function reset() { dragIdx.value = null; dragOverIdx.value = null; }
+  function reset() {
+    dragIdx.value = null;
+    dragOverIdx.value = null;
+  }
   function onDrop(idx: number) {
     const from = dragIdx.value;
     if (from === null || from === idx) return reset();
@@ -505,19 +569,30 @@ function makeDragReorder(orderRef: Ref<string[]>, onChange?: () => void) {
 // ---- Logic helpers ----
 
 /** Reorder items by keyFn against an order array; items whose keys aren't in order are appended. */
-function applyOrder<T>(items: T[], order: string[], keyFn: (x: T) => string): T[] {
+function applyOrder<T>(
+  items: T[],
+  order: string[],
+  keyFn: (x: T) => string
+): T[] {
   const byKey = new Map(items.map((x) => [keyFn(x), x]));
   const result: T[] = [];
   for (const key of order) {
     const x = byKey.get(key);
-    if (x) { result.push(x); byKey.delete(key); }
+    if (x) {
+      result.push(x);
+      byKey.delete(key);
+    }
   }
   for (const x of byKey.values()) result.push(x);
   return result;
 }
 
 /** Keep orderRef in sync with items: drop stale keys, append any new ones. */
-function syncOrder<T>(items: T[], orderRef: Ref<string[]>, keyFn: (x: T) => string) {
+function syncOrder<T>(
+  items: T[],
+  orderRef: Ref<string[]>,
+  keyFn: (x: T) => string
+) {
   const currentKeys = new Set(items.map(keyFn));
   orderRef.value = orderRef.value.filter((k) => currentKeys.has(k));
   for (const item of items) {
@@ -534,7 +609,11 @@ function syncOrder<T>(items: T[], orderRef: Ref<string[]>, keyFn: (x: T) => stri
 // `PanelKind` covers all three; `Mode` is the narrower path-based subset used by
 // enable / activePaths / addNext / changeNode.
 const MODES = {
-  filters: { store: filters, root: filter_root, fieldsKey: "inputFields" as const },
+  filters: {
+    store: filters,
+    root: filter_root,
+    fieldsKey: "inputFields" as const,
+  },
   sorts: { store: sorts, root: sort_root, fieldsKey: "inputFields" as const },
   columns: { store: columns, root: column_root, fieldsKey: "fields" as const },
 };
@@ -544,7 +623,9 @@ type Mode = "filters" | "sorts";
 /** Root-level fields of a panel's root type. Uses `inputFields` for filter/sort, `fields` for columns. */
 function topLevel(kind: PanelKind) {
   const { store, root, fieldsKey } = MODES[kind];
-  return store.value.find((o: any) => o.name === root.value)?.[fieldsKey] || [];
+  return (
+    store.value.find((o: any) => o.name === root.value)?.[fieldsKey] || []
+  );
 }
 
 /** Filter a list of {name, on} items to those not active whose name matches search. */
@@ -756,7 +837,9 @@ const orderedSortPaths = computed(() =>
 
 /** Collect active columns from the root node type (fields with .on === true) */
 const activeColumns = computed(() => {
-  const rootType = columns.value.find((c: any) => c.name === column_root.value);
+  const rootType = columns.value.find(
+    (c: any) => c.name === column_root.value
+  );
   if (!rootType?.fields) return [];
   return rootType.fields.filter((f: any) => f.on);
 });
@@ -786,7 +869,9 @@ function setDisplayField(col: any, value: string) {
 
 /** Get the scalar sub-fields of an FK column's related type (for the display field dropdown) */
 function getSubFields(col: any) {
-  const related = columns.value.find((c: any) => c.name === col.resolvedTypeName);
+  const related = columns.value.find(
+    (c: any) => c.name === col.resolvedTypeName
+  );
   if (!related?.fields) return [];
   return related.fields.filter((f: any) => f.resolvedTypeKind === "SCALAR");
 }
@@ -795,8 +880,12 @@ function getSubFields(col: any) {
 // 2e. Watchers — sync *_order refs with their active computeds
 // ----------------------------------------------------------------
 
-watch(activeSortPaths, (paths) => syncOrder(paths, sort_path_order, sortPathKey));
-watch(activeColumns, (cols) => syncOrder(cols, column_order, (c: any) => c.name));
+watch(activeSortPaths, (paths) =>
+  syncOrder(paths, sort_path_order, sortPathKey)
+);
+watch(activeColumns, (cols) =>
+  syncOrder(cols, column_order, (c: any) => c.name)
+);
 
 // ----------------------------------------------------------------
 // 2f. Panels config — drives the three panels' v-for in the template
@@ -821,7 +910,10 @@ const panels: Array<{
     label: "Sort",
     labelPlural: "Sorts",
     count: () => activeSortPaths.value.length,
-    add: (f) => { enable(f, "sorts"); get(); },
+    add: (f) => {
+      enable(f, "sorts");
+      get();
+    },
   },
   {
     kind: "columns",
@@ -916,14 +1008,22 @@ function get() {
         newNode[col.name] = true;
       } else if (col.isConnection && col.nodeType) {
         // Connection: inject edges/node envelope, fetch scalar children of node type
-        const nodeType = columns.value.find((c: any) => c.name === col.nodeType);
+        const nodeType = columns.value.find(
+          (c: any) => c.name === col.nodeType
+        );
         const innerNode: any = {};
         if (nodeType?.fields) {
           nodeType.fields
             .filter((f: any) => f.resolvedTypeKind === "SCALAR")
-            .forEach((f: any) => { innerNode[f.name] = true; });
+            .forEach((f: any) => {
+              innerNode[f.name] = true;
+            });
         }
-        newNode[col.name] = { edges: { node: Object.keys(innerNode).length ? innerNode : { id: true } } };
+        newNode[col.name] = {
+          edges: {
+            node: Object.keys(innerNode).length ? innerNode : { id: true },
+          },
+        };
       } else if (col.resolvedTypeKind === "OBJECT" && col.resolvedTypeName) {
         // Forward FK: fetch only the selected displayField
         if (col.displayField) {
@@ -1016,7 +1116,9 @@ function cellConnectionLines(col: any, row: any): string[] {
   const edges: any[] = row[col.name]?.edges || [];
   return edges.map((edge: any) =>
     Object.values(edge.node || {})
-      .map((v) => (typeof v === "object" ? Object.values(v as any).join(": ") : v))
+      .map((v) =>
+        typeof v === "object" ? Object.values(v as any).join(": ") : v
+      )
       .join(", ")
   );
 }
@@ -1126,7 +1228,12 @@ function goToPage(n: number) {
                       v-model="search_dropdown"
                       class="form-control py-1"
                       type="text"
-                      :placeholder="topLevel(panel.kind).length + ' ' + panel.labelPlural + '...'"
+                      :placeholder="
+                        topLevel(panel.kind).length +
+                        ' ' +
+                        panel.labelPlural +
+                        '...'
+                      "
                     />
                   </li>
                   <li v-for="f in searchFieldsFn(panel.kind)" :key="f.name">
@@ -1396,12 +1503,19 @@ function goToPage(n: number) {
                     </td>
                     <!-- Sub-field selector: only shown for FK columns -->
                     <td
-                      v-if="col.resolvedTypeKind === 'OBJECT' && !col.isConnection"
+                      v-if="
+                        col.resolvedTypeKind === 'OBJECT' && !col.isConnection
+                      "
                       style="height: 1px"
                     >
                       <select
                         :value="col.displayField"
-                        @change="setDisplayField(col, ($event.target as HTMLSelectElement).value)"
+                        @change="
+                          setDisplayField(
+                            col,
+                            ($event.target as HTMLSelectElement).value
+                          )
+                        "
                         class="btn btn-outline-secondary btn-sm text-capitalize border-secondary text-center rounded-0 h-100 w-100"
                         style="min-height: 31px"
                       >
@@ -1480,18 +1594,21 @@ function goToPage(n: number) {
                   :key="col.name"
                   class="text-capitalize"
                 >
-                  {{ camel(col.name) }}{{ col.displayField ? ' > ' + camel(col.displayField) : '' }}
+                  {{ camel(col.name)
+                  }}{{
+                    col.displayField ? " > " + camel(col.displayField) : ""
+                  }}
                 </th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="h in a_r?.[ROOT]?.edges" :key="h.node.id">
-                <td
-                  v-for="col in orderedColumns"
-                  :key="col.name"
-                >
+                <td v-for="col in orderedColumns" :key="col.name">
                   <template v-if="col.isConnection">
-                    <div v-for="(line, i) in cellConnectionLines(col, h.node)" :key="i">
+                    <div
+                      v-for="(line, i) in cellConnectionLines(col, h.node)"
+                      :key="i"
+                    >
                       {{ line }}
                     </div>
                   </template>
@@ -1546,7 +1663,12 @@ function goToPage(n: number) {
             :value="page_size"
             min="1"
             @change="
-              page_size = Math.max(1, Math.floor(Math.abs(+($event.target as HTMLInputElement).value)) || 1);
+              page_size = Math.max(
+                1,
+                Math.floor(
+                  Math.abs(+($event.target as HTMLInputElement).value)
+                ) || 1
+              );
               get();
             "
           />

@@ -7,6 +7,10 @@ import {
 import { ref, watch, computed, nextTick, type Ref } from "vue";
 import { useApolloClient } from "@vue/apollo-composable";
 
+// ================================================================
+// CONSTANTS
+// ================================================================
+
 // The GraphQL root query field name — change this to point at a different model
 const ROOT = "tools";
 
@@ -25,10 +29,21 @@ const NON_MODEL_ARGS = [
   "not",
 ];
 
+// Relay envelope fields stripped during column object introspection.
+const CONNECTION_FIELDS = ["edges", "node", "pageInfo", "cursor", "count", "counts"];
+
+// ================================================================
+// STATE
+//    All top-level refs grouped by domain. The drag destructures
+//    rely on `makeDragReorder` (defined in §2a) and `get` (§3c)
+//    being reachable via function-declaration hoisting.
+// ================================================================
+
 // ---- Global State ----
-const search = ref("");          // global search input
-const show_filters = ref(true);  // toggle the filters/sorts panel
-const page_size = ref(100);      // results per page
+const search = ref("");             // global search input
+const show_filters = ref(true);     // toggle the filters/sorts panel
+const page_size = ref(100);         // results per page
+const paginationOffset = ref(0);    // zero-based offset into the result set (pagination source of truth)
 
 // Single search input for whichever Add dropdown (filter/sort/column) is currently open.
 // Only one dropdown is ever visible at a time, so one shared ref is enough.
@@ -61,8 +76,15 @@ const {
   reset: resetColumnDrag,
 } = makeDragReorder(column_order, get);
 
-// Connection envelope fields to strip during column introspection
-const CONNECTION_FIELDS = ["edges", "node", "pageInfo", "cursor", "count", "counts"];
+// ================================================================
+// 1. DATA LOGIC — SCHEMA INTROSPECTION
+//    Discovers the ROOT query's filter, sort, and column types via
+//    __type introspection. Runs once on mount via watch(q_r) (§1f).
+// ================================================================
+
+// ----------------------------------------------------------------
+// 1a. Logic helpers
+// ----------------------------------------------------------------
 
 /** Recursively strip __typename fields injected by Apollo cache */
 const stripTypename = (obj: any): any => {
@@ -75,64 +97,44 @@ const stripTypename = (obj: any): any => {
   return obj;
 };
 
-/** Reorder items by keyFn against an order array; items whose keys aren't in order are appended. */
-function applyOrder<T>(items: T[], order: string[], keyFn: (x: T) => string): T[] {
-  const byKey = new Map(items.map((x) => [keyFn(x), x]));
-  const result: T[] = [];
-  for (const key of order) {
-    const x = byKey.get(key);
-    if (x) { result.push(x); byKey.delete(key); }
+/** Recursively peel NON_NULL and LIST wrappers to find the inner type name and kind. */
+function unwrapType(t: any): { varType: string; innerName: string; innerKind: string } {
+  if (!t) return { varType: "", innerName: "", innerKind: "" };
+  if (t.kind === "NON_NULL") {
+    const inner = unwrapType(t.ofType);
+    return { varType: inner.varType + "!", innerName: inner.innerName, innerKind: inner.innerKind };
   }
-  for (const x of byKey.values()) result.push(x);
-  return result;
-}
-
-/** Keep orderRef in sync with items: drop stale keys, append any new ones. */
-function syncOrder<T>(items: T[], orderRef: Ref<string[]>, keyFn: (x: T) => string) {
-  const currentKeys = new Set(items.map(keyFn));
-  orderRef.value = orderRef.value.filter((k) => currentKeys.has(k));
-  for (const item of items) {
-    const key = keyFn(item);
-    if (!orderRef.value.includes(key)) orderRef.value.push(key);
+  if (t.kind === "LIST") {
+    const inner = unwrapType(t.ofType);
+    return { varType: `[${inner.varType}]`, innerName: inner.innerName, innerKind: inner.innerKind };
   }
+  return { varType: t.name || "", innerName: t.name || "", innerKind: t.kind || "" };
 }
 
-/**
- * Reset the shared dropdown search text and focus the dropdown's input once Vue flushes.
- * Called from every "Add X" button — the three dropdowns share one search ref.
- */
-function focusDropdownInput(ev: Event) {
-  search_dropdown.value = "";
-  const trigger = ev.currentTarget as HTMLElement | null;
-  nextTick(() =>
-    trigger?.nextElementSibling?.querySelector<HTMLInputElement>("input")?.focus()
-  );
+// Shared type-ref fragments for introspection queries.
+// typeRef2 covers LIST(NON_NULL(Type)) — enough for INPUT_OBJECT field types.
+// typeRef3 adds one more level of nesting for NON_NULL(LIST(NON_NULL(Type))) — used by OBJECT fields/args.
+const typeRef2 = { kind: true, name: true, ofType: { kind: true, name: true } };
+const typeRef3 = { kind: true, name: true, ofType: typeRef2 };
+
+/** Build an introspection query envelope for `__type(name: $name)` with a custom selection set. */
+function makeTypeQuery(selection: any) {
+  return {
+    query: {
+      __variables: { name: "String!" },
+      __type: {
+        __args: { name: new VariableType("name") },
+        name: true,
+        kind: true,
+        ...selection,
+      },
+    },
+  };
 }
 
-/** Drag-and-drop reorder state + onDrop handler for a list whose order lives in `orderRef`. */
-function makeDragReorder(orderRef: Ref<string[]>, onChange?: () => void) {
-  const dragIdx = ref<number | null>(null);
-  const dragOverIdx = ref<number | null>(null);
-  function reset() { dragIdx.value = null; dragOverIdx.value = null; }
-  function onDrop(idx: number) {
-    const from = dragIdx.value;
-    if (from === null || from === idx) return reset();
-    const order = [...orderRef.value];
-    const [moved] = order.splice(from, 1);
-    if (moved !== undefined) order.splice(idx, 0, moved);
-    orderRef.value = order;
-    reset();
-    onChange?.();
-  }
-  return { dragIdx, dragOverIdx, onDrop, reset };
-}
-
-// ================================================================
-// 1. DYNAMIC GRAPHQL SCHEMA INTROSPECTION
-//    Uses __type introspection to discover the ROOT query's args,
-//    then recursively walks INPUT_OBJECT types to build up the
-//    filter and sort type trees used by the UI.
-// ================================================================
+// ----------------------------------------------------------------
+// 1b. Queries + Apollo infra
+// ----------------------------------------------------------------
 
 // Introspect the top-level Query type to find all args for ROOT.
 // ofType is nested 2 deep to handle LIST(NON_NULL(Type)) wrappers.
@@ -190,113 +192,6 @@ const {
 
 /** True while the schema introspection is loading or errored — gates the Add buttons. */
 const introspecting = computed(() => !!(q_l.value || q_e.value));
-
-/** Recursively peel NON_NULL and LIST wrappers to find the inner type name and kind. */
-function unwrapType(t: any): { varType: string; innerName: string; innerKind: string } {
-  if (!t) return { varType: "", innerName: "", innerKind: "" };
-  if (t.kind === "NON_NULL") {
-    const inner = unwrapType(t.ofType);
-    return { varType: inner.varType + "!", innerName: inner.innerName, innerKind: inner.innerKind };
-  }
-  if (t.kind === "LIST") {
-    const inner = unwrapType(t.ofType);
-    return { varType: `[${inner.varType}]`, innerName: inner.innerName, innerKind: inner.innerKind };
-  }
-  return { varType: t.name || "", innerName: t.name || "", innerKind: t.kind || "" };
-}
-
-/** Kick off filter-tree introspection from the ROOT query's `filter` arg. Fire-and-forget. */
-function initFiltersFrom(args: any[]) {
-  const filterArg = args.find((o: any) => o.name === "filter");
-  if (!filterArg?.type?.name) return;
-  filter_root.value = filterArg.type.name;
-  introspect(filterArg.type.name, "filters");
-}
-
-/** Kick off sort-tree introspection from the ROOT query's `orderBy` arg. Fire-and-forget. */
-function initSortsFrom(args: any[]) {
-  const orderByArg = args.find((o: any) => o.name === "orderBy");
-  if (!orderByArg) return;
-  const { varType, innerName } = unwrapType(orderByArg.type);
-  if (!innerName) return;
-  sort_root.value = innerName;
-  sort_var_type.value = varType;
-  introspect(innerName, "sorts");
-}
-
-/**
- * Resolve ROOT's Connection node type and introspect its object graph, then
- * enable default columns (all scalars + first scalar of each forward FK) and run
- * the initial data query. Awaited so `get()` fires with columns populated.
- */
-async function initColumnsFrom(rootField: any) {
-  if (!rootField?.type) return;
-  const { innerName: connectionName } = unwrapType(rootField.type);
-  if (!connectionName) return;
-  const nodeTypeName = await resolveConnectionNodeType(connectionName);
-  if (!nodeTypeName) return;
-  column_root.value = nodeTypeName;
-  await introspectColumns(nodeTypeName);
-
-  // Default: turn on all scalar fields of the root node type
-  const rootType = columns.value.find((c: any) => c.name === nodeTypeName);
-  if (rootType?.fields) {
-    for (const field of rootType.fields) {
-      if (field.resolvedTypeKind === "SCALAR") field.on = true;
-      // Default displayField for FK columns to the first scalar child
-      if (field.resolvedTypeKind === "OBJECT" && !field.isConnection && field.resolvedTypeName) {
-        const related = columns.value.find((c: any) => c.name === field.resolvedTypeName);
-        const firstScalar = related?.fields?.find((rf: any) => rf.resolvedTypeKind === "SCALAR");
-        if (firstScalar) field.displayField = firstScalar.name;
-      }
-    }
-    column_order.value = rootType.fields
-      .filter((f: any) => f.on)
-      .map((f: any) => f.name);
-  }
-  get();
-}
-
-// When the schema introspection returns, discover the filter, sort, and column types.
-// Filters and sorts are fire-and-forget; columns must finish before get() so the initial
-// query has an accurate edges.node selection.
-watch(q_r, (value) => {
-  let args: any[];
-  try {
-    args = value?.__type?.fields?.find((field: any) => field.name === ROOT)?.args;
-  } catch (error) {
-    console.error(error);
-    return;
-  }
-  args = stripTypename(args) || [];
-
-  initFiltersFrom(args);
-  initSortsFrom(args);
-
-  const rootField = value?.__type?.fields?.find((field: any) => field.name === ROOT);
-  initColumnsFrom(rootField);
-});
-
-// Shared type-ref fragments for introspection queries.
-// typeRef2 covers LIST(NON_NULL(Type)) — enough for INPUT_OBJECT field types.
-// typeRef3 adds one more level of nesting for NON_NULL(LIST(NON_NULL(Type))) — used by OBJECT fields/args.
-const typeRef2 = { kind: true, name: true, ofType: { kind: true, name: true } };
-const typeRef3 = { kind: true, name: true, ofType: typeRef2 };
-
-/** Build an introspection query envelope for `__type(name: $name)` with a custom selection set. */
-function makeTypeQuery(selection: any) {
-  return {
-    query: {
-      __variables: { name: "String!" },
-      __type: {
-        __args: { name: new VariableType("name") },
-        name: true,
-        kind: true,
-        ...selection,
-      },
-    },
-  };
-}
 
 // Reusable introspection query — fetches inputFields for any named INPUT_OBJECT type.
 // Used by introspect() via separate lazy query instances for filters and sorts.
@@ -366,6 +261,37 @@ async function introspect(typeName: string, mode: "filters" | "sorts") {
       .map((o: any) => introspect(o.type.name, mode))
   );
 }
+
+// ----------------------------------------------------------------
+// 1c. Filters
+// ----------------------------------------------------------------
+
+/** Kick off filter-tree introspection from the ROOT query's `filter` arg. Fire-and-forget. */
+function initFiltersFrom(args: any[]) {
+  const filterArg = args.find((o: any) => o.name === "filter");
+  if (!filterArg?.type?.name) return;
+  filter_root.value = filterArg.type.name;
+  introspect(filterArg.type.name, "filters");
+}
+
+// ----------------------------------------------------------------
+// 1d. Sorts
+// ----------------------------------------------------------------
+
+/** Kick off sort-tree introspection from the ROOT query's `orderBy` arg. Fire-and-forget. */
+function initSortsFrom(args: any[]) {
+  const orderByArg = args.find((o: any) => o.name === "orderBy");
+  if (!orderByArg) return;
+  const { varType, innerName } = unwrapType(orderByArg.type);
+  if (!innerName) return;
+  sort_root.value = innerName;
+  sort_var_type.value = varType;
+  introspect(innerName, "sorts");
+}
+
+// ----------------------------------------------------------------
+// 1e. Columns
+// ----------------------------------------------------------------
 
 /**
  * Resolve a Relay Connection type to its inner node type name.
@@ -469,12 +395,141 @@ async function introspectColumns(typeName: string, visited = new Set<string>()) 
   );
 }
 
+/**
+ * Resolve ROOT's Connection node type and introspect its object graph, then
+ * enable default columns (all scalars + first scalar of each forward FK) and run
+ * the initial data query. Awaited so `get()` fires with columns populated.
+ */
+async function initColumnsFrom(rootField: any) {
+  if (!rootField?.type) return;
+  const { innerName: connectionName } = unwrapType(rootField.type);
+  if (!connectionName) return;
+  const nodeTypeName = await resolveConnectionNodeType(connectionName);
+  if (!nodeTypeName) return;
+  column_root.value = nodeTypeName;
+  await introspectColumns(nodeTypeName);
+
+  // Default: turn on all scalar fields of the root node type
+  const rootType = columns.value.find((c: any) => c.name === nodeTypeName);
+  if (rootType?.fields) {
+    for (const field of rootType.fields) {
+      if (field.resolvedTypeKind === "SCALAR") field.on = true;
+      // Default displayField for FK columns to the first scalar child
+      if (field.resolvedTypeKind === "OBJECT" && !field.isConnection && field.resolvedTypeName) {
+        const related = columns.value.find((c: any) => c.name === field.resolvedTypeName);
+        const firstScalar = related?.fields?.find((rf: any) => rf.resolvedTypeKind === "SCALAR");
+        if (firstScalar) field.displayField = firstScalar.name;
+      }
+    }
+    column_order.value = rootType.fields
+      .filter((f: any) => f.on)
+      .map((f: any) => f.name);
+  }
+  get();
+}
+
+// ----------------------------------------------------------------
+// 1f. Boot watcher
+// ----------------------------------------------------------------
+
+// When the schema introspection returns, discover the filter, sort, and column types.
+// Filters and sorts are fire-and-forget; columns must finish before get() so the initial
+// query has an accurate edges.node selection.
+watch(q_r, (value) => {
+  let args: any[];
+  try {
+    args = value?.__type?.fields?.find((field: any) => field.name === ROOT)?.args;
+  } catch (error) {
+    console.error(error);
+    return;
+  }
+  args = stripTypename(args) || [];
+
+  initFiltersFrom(args);
+  initSortsFrom(args);
+
+  const rootField = value?.__type?.fields?.find((field: any) => field.name === ROOT);
+  initColumnsFrom(rootField);
+});
+
 // ================================================================
-// 2. FILTER UI LOGIC
-//    Manages the interactive filter builder: enabling/disabling
-//    filter branches, computing active paths through the type tree,
-//    and laying them out as a grid with merged rowspans.
+// 2. UI LOGIC — Panel Builders
+//    Filter / Sort / Column panel behavior. Shared registry + path
+//    operations live in 2a; per-domain state/computeds in 2b–2d;
+//    sync watchers in 2e; panels config in 2f.
 // ================================================================
+
+// ----------------------------------------------------------------
+// 2a. Helpers (UI + Logic + shared panel registry + path operations)
+// ----------------------------------------------------------------
+
+// ---- UI helpers ----
+
+/** Convert camelCase to spaced words for display: "brandName" → "brand Name" */
+function camel(s: string) {
+  return s.replace(/([A-Z])/g, " $1").trim();
+}
+
+/** HTML input type for a GraphQL scalar field type — numeric types use number inputs. */
+function inputTypeFor(fieldType: string): "number" | "text" {
+  return ["Int", "Decimal", "Float"].includes(fieldType) ? "number" : "text";
+}
+
+/**
+ * Reset the shared dropdown search text and focus the dropdown's input once Vue flushes.
+ * Called from every "Add X" button — the three dropdowns share one search ref.
+ */
+function focusDropdownInput(ev: Event) {
+  search_dropdown.value = "";
+  const trigger = ev.currentTarget as HTMLElement | null;
+  nextTick(() =>
+    trigger?.nextElementSibling?.querySelector<HTMLInputElement>("input")?.focus()
+  );
+}
+
+/** Drag-and-drop reorder state + onDrop handler for a list whose order lives in `orderRef`. */
+function makeDragReorder(orderRef: Ref<string[]>, onChange?: () => void) {
+  const dragIdx = ref<number | null>(null);
+  const dragOverIdx = ref<number | null>(null);
+  function reset() { dragIdx.value = null; dragOverIdx.value = null; }
+  function onDrop(idx: number) {
+    const from = dragIdx.value;
+    if (from === null || from === idx) return reset();
+    const order = [...orderRef.value];
+    const [moved] = order.splice(from, 1);
+    if (moved !== undefined) order.splice(idx, 0, moved);
+    orderRef.value = order;
+    reset();
+    onChange?.();
+  }
+  return { dragIdx, dragOverIdx, onDrop, reset };
+}
+
+// ---- Logic helpers ----
+
+/** Reorder items by keyFn against an order array; items whose keys aren't in order are appended. */
+function applyOrder<T>(items: T[], order: string[], keyFn: (x: T) => string): T[] {
+  const byKey = new Map(items.map((x) => [keyFn(x), x]));
+  const result: T[] = [];
+  for (const key of order) {
+    const x = byKey.get(key);
+    if (x) { result.push(x); byKey.delete(key); }
+  }
+  for (const x of byKey.values()) result.push(x);
+  return result;
+}
+
+/** Keep orderRef in sync with items: drop stale keys, append any new ones. */
+function syncOrder<T>(items: T[], orderRef: Ref<string[]>, keyFn: (x: T) => string) {
+  const currentKeys = new Set(items.map(keyFn));
+  orderRef.value = orderRef.value.filter((k) => currentKeys.has(k));
+  for (const item of items) {
+    const key = keyFn(item);
+    if (!orderRef.value.includes(key)) orderRef.value.push(key);
+  }
+}
+
+// ---- Shared panel registry + path operations (used by all three panels) ----
 
 // Registry of the three UI panels (filter tree / sort tree / column list).
 // `fieldsKey` differs because filter/sort root types are INPUT_OBJECTs (`inputFields`)
@@ -488,6 +543,23 @@ const MODES = {
 };
 type PanelKind = keyof typeof MODES;
 type Mode = "filters" | "sorts";
+
+/** Root-level fields of a panel's root type. Uses `inputFields` for filter/sort, `fields` for columns. */
+function topLevel(kind: PanelKind) {
+  const { store, root, fieldsKey } = MODES[kind];
+  return store.value.find((o: any) => o.name === root.value)?.[fieldsKey] || [];
+}
+
+/** Filter a list of {name, on} items to those not active whose name matches search. */
+function filterAvailable(items: any[], searchStr: string) {
+  const q = searchStr.toLowerCase().trim();
+  return items.filter((x: any) => !x.on && x.name.toLowerCase().includes(q));
+}
+
+/** Dropdown items for an "Add X" panel: available (non-active) root fields matching the shared search. */
+function searchFieldsFn(kind: PanelKind) {
+  return filterAvailable(topLevel(kind), search_dropdown.value);
+}
 
 /**
  * Toggle a field on and cascade-open the first child at each level.
@@ -512,52 +584,6 @@ function enable(inputField: any, mode: Mode) {
         enable(obj.inputFields[0], mode);
     }
   }
-}
-
-/** Convert camelCase to spaced words for display: "brandName" → "brand Name" */
-function camel(s: string) {
-  return s.replace(/([A-Z])/g, " $1").trim();
-}
-
-/** HTML input type for a GraphQL scalar field type — numeric types use number inputs. */
-function inputTypeFor(fieldType: string): "number" | "text" {
-  return ["Int", "Decimal", "Float"].includes(fieldType) ? "number" : "text";
-}
-
-/** Render a scalar or forward-FK column as a single string; empty string if missing. */
-function cellText(col: any, row: any): string {
-  if (col.resolvedTypeKind === "SCALAR") return row[col.name] ?? "";
-  if (col.resolvedTypeKind === "OBJECT" && !col.isConnection) {
-    return row[col.name]?.[col.displayField] ?? "";
-  }
-  return "";
-}
-
-/** Render a connection column as one line per edge — each line is a comma-joined flattening of the edge's node values. */
-function cellConnectionLines(col: any, row: any): string[] {
-  const edges: any[] = row[col.name]?.edges || [];
-  return edges.map((edge: any) =>
-    Object.values(edge.node || {})
-      .map((v) => (typeof v === "object" ? Object.values(v as any).join(": ") : v))
-      .join(", ")
-  );
-}
-
-/** Root-level fields of a panel's root type. Uses `inputFields` for filter/sort, `fields` for columns. */
-function topLevel(kind: PanelKind) {
-  const { store, root, fieldsKey } = MODES[kind];
-  return store.value.find((o: any) => o.name === root.value)?.[fieldsKey] || [];
-}
-
-/** Filter a list of {name, on} items to those not active whose name matches search. */
-function filterAvailable(items: any[], searchStr: string) {
-  const q = searchStr.toLowerCase().trim();
-  return items.filter((x: any) => !x.on && x.name.toLowerCase().includes(q));
-}
-
-/** Dropdown items for an "Add X" panel: available (non-active) root fields matching the shared search. */
-function searchFieldsFn(kind: PanelKind) {
-  return filterAvailable(topLevel(kind), search_dropdown.value);
 }
 
 /**
@@ -617,8 +643,50 @@ function activePaths(mode: Mode) {
   return paths;
 }
 
+/** Swap the selected node at a given level to a different option (via select change) and refetch. */
+function changeNode(level: any, event: Event, mode: Mode) {
+  const target = event.target as HTMLSelectElement;
+  if (!target) return;
+  const newOptionName = target.value;
+  if (level.selected.name === newOptionName) return;
+
+  // Deactivate old branch, activate new one
+  level.selected.on = false;
+  const newOption = level.options.find((o: any) => o.name === newOptionName);
+  if (newOption) enable(newOption, mode);
+  get();
+}
+
+/**
+ * Expand the next unused sibling field within a branch.
+ * For sorts: the new leaf defaults to "ASC" and is immediately queryable, so refetch.
+ * For filters: the new leaf is blank and doesn't affect the query until the user types — no refetch.
+ */
+function addNext(level: any, mode: Mode) {
+  if (!level.selected.type?.name) return;
+  const obj = MODES[mode].store.value.find(
+    (f: any) => f.name === level.selected.type.name
+  );
+  const nextField = obj?.inputFields?.find((f: any) => !f.on);
+  if (nextField) enable(nextField, mode);
+  if (mode === "sorts") get();
+}
+
+/** Walk backwards along a path turning off nodes; stop when a sibling is still active. Triggers a refetch. */
+function deletePath(path: any[]) {
+  for (let i = path.length - 1; i >= 0; i--) {
+    const level = path[i];
+    level.selected.on = false;
+    if (level.options.some((opt: any) => opt.on)) break;
+  }
+  get();
+}
+
+// ----------------------------------------------------------------
+// 2b. Filters
+// ----------------------------------------------------------------
+
 const activeFilterPaths = computed(() => activePaths("filters"));
-const activeSortPaths = computed(() => activePaths("sorts"));
 
 /**
  * Transform flat paths into a 2D grid with merged cells (rowspans).
@@ -669,89 +737,25 @@ const filterGrid = computed(() => {
   return grid;
 });
 
-/** Swap the selected node at a given level to a different option (via select change) and refetch. */
-function changeNode(level: any, event: Event, mode: Mode) {
-  const target = event.target as HTMLSelectElement;
-  if (!target) return;
-  const newOptionName = target.value;
-  if (level.selected.name === newOptionName) return;
-
-  // Deactivate old branch, activate new one
-  level.selected.on = false;
-  const newOption = level.options.find((o: any) => o.name === newOptionName);
-  if (newOption) enable(newOption, mode);
-  get();
-}
-
-/**
- * Expand the next unused sibling field within a branch.
- * For sorts: the new leaf defaults to "ASC" and is immediately queryable, so refetch.
- * For filters: the new leaf is blank and doesn't affect the query until the user types — no refetch.
- */
-function addNext(level: any, mode: Mode) {
-  if (!level.selected.type?.name) return;
-  const obj = MODES[mode].store.value.find(
-    (f: any) => f.name === level.selected.type.name
-  );
-  const nextField = obj?.inputFields?.find((f: any) => !f.on);
-  if (nextField) enable(nextField, mode);
-  if (mode === "sorts") get();
-}
-
-/** Walk backwards along a path turning off nodes; stop when a sibling is still active. Triggers a refetch. */
-function deletePath(path: any[]) {
-  for (let i = path.length - 1; i >= 0; i--) {
-    const level = path[i];
-    level.selected.on = false;
-    if (level.options.some((opt: any) => opt.on)) break;
-  }
-  get();
-}
-
-// ================================================================
-// 2b. SORT UI LOGIC
-//     Mirrors the filter UI but for orderBy. Leaf nodes are
-//     ENUM (ASC/DESC) instead of scalar input values.
-// ================================================================
+// ----------------------------------------------------------------
+// 2c. Sorts
+// ----------------------------------------------------------------
 
 /** Generate a stable identity key for a sort path (e.g. "brand.name" or "category.name") */
 function sortPathKey(path: any[]) {
   return path.map((p) => p.selected.name).join(".");
 }
 
-/**
- * Walk a path [{selected: {name, value}}, ...] writing each segment's name as a key
- * on `target`, descending at every non-leaf level and assigning the leaf's value at the bottom.
- * Returns `target` if written to, or null if the leaf value is empty/undefined.
- */
-function buildNestedFromPath(path: any[], target: any = {}): any | null {
-  const leaf = path[path.length - 1]?.selected;
-  if (!leaf || leaf.value === "" || leaf.value === undefined) return null;
-  let cur = target;
-  for (let i = 0; i < path.length; i++) {
-    const node = path[i].selected;
-    if (i === path.length - 1) cur[node.name] = node.value;
-    else {
-      cur[node.name] ??= {};
-      cur = cur[node.name];
-    }
-  }
-  return target;
-}
+const activeSortPaths = computed(() => activePaths("sorts"));
 
 /** Active sort paths reordered by the user's drag-and-drop priority. */
 const orderedSortPaths = computed(() =>
   applyOrder(activeSortPaths.value, sort_path_order.value, sortPathKey)
 );
 
-// Keep sort_path_order in sync as paths are added or removed
-watch(activeSortPaths, (paths) => syncOrder(paths, sort_path_order, sortPathKey));
-
-// ================================================================
-// 2c. COLUMN ORDERING LOGIC
-//     Mirrors sort ordering: .on determines active, column_order
-//     determines left-to-right display order.
-// ================================================================
+// ----------------------------------------------------------------
+// 2d. Columns
+// ----------------------------------------------------------------
 
 /** Collect active columns from the root node type (fields with .on === true) */
 const activeColumns = computed(() => {
@@ -766,9 +770,6 @@ const columnKey = (c: any) => c.name;
 const orderedColumns = computed(() =>
   applyOrder(activeColumns.value, column_order.value, columnKey)
 );
-
-// Keep column_order in sync as columns toggle on/off
-watch(activeColumns, (cols) => syncOrder(cols, column_order, columnKey));
 
 /** Enable a column and trigger a refetch */
 function enableColumn(field: any) {
@@ -795,11 +796,17 @@ function getSubFields(col: any) {
   return related.fields.filter((f: any) => f.resolvedTypeKind === "SCALAR");
 }
 
-/**
- * Config driving the three Filter / Sort / Column UI panels.
- * Each panel shares the same header shape (count + "Add X" dropdown) and a collapsed-summary entry;
- * the body (filter grid, sort rows, column rows) is rendered per-kind inline in the template.
- */
+// ----------------------------------------------------------------
+// 2e. Watchers — sync *_order refs with their active computeds
+// ----------------------------------------------------------------
+
+watch(activeSortPaths, (paths) => syncOrder(paths, sort_path_order, sortPathKey));
+watch(activeColumns, (cols) => syncOrder(cols, column_order, columnKey));
+
+// ----------------------------------------------------------------
+// 2f. Panels config — drives the three panels' v-for in the template
+// ----------------------------------------------------------------
+
 const panels: Array<{
   kind: PanelKind;
   label: string;
@@ -831,10 +838,39 @@ const panels: Array<{
 ];
 
 // ================================================================
-// 3. MAIN LIVE DATA QUERY
+// 3. MAIN DATA QUERY
 //    Rebuilds the GraphQL document and variables from the current
 //    filter/sort state, then triggers a reactive refetch.
 // ================================================================
+
+// ----------------------------------------------------------------
+// 3a. Logic helpers
+// ----------------------------------------------------------------
+
+/**
+ * Walk a path [{selected: {name, value}}, ...] writing each segment's name as a key
+ * on `target`, descending at every non-leaf level and assigning the leaf's value at the bottom.
+ * Returns `target` if written to, or null if the leaf value is empty/undefined.
+ * Used by `get()` to build both filter and sort payloads from their active paths.
+ */
+function buildNestedFromPath(path: any[], target: any = {}): any | null {
+  const leaf = path[path.length - 1]?.selected;
+  if (!leaf || leaf.value === "" || leaf.value === undefined) return null;
+  let cur = target;
+  for (let i = 0; i < path.length; i++) {
+    const node = path[i].selected;
+    if (i === path.length - 1) cur[node.name] = node.value;
+    else {
+      cur[node.name] ??= {};
+      cur = cur[node.name];
+    }
+  }
+  return target;
+}
+
+// ----------------------------------------------------------------
+// 3b. Query skeleton + Apollo
+// ----------------------------------------------------------------
 
 // Mutable query skeleton — __variables and __args are rebuilt on every get() call
 const q = {
@@ -863,6 +899,10 @@ const {
   loading: a_l,
   error: a_e,
 } = useQuery(queryDoc, queryVariables);
+
+// ----------------------------------------------------------------
+// 3c. Query builder
+// ----------------------------------------------------------------
 
 /**
  * Rebuild and execute the query from the current column, filter, and sort UI state.
@@ -963,12 +1003,34 @@ function get() {
 }
 
 // ================================================================
-// 5. PAGINATION
-//    Offset-based pagination using first/offset variables.
+// 4. DATA TABLE UI
+//    Script-side helpers used by the main data table's <tbody> rows.
 // ================================================================
 
-/** Zero-based offset into the result set — the true pagination source of truth */
-const paginationOffset = ref(0);
+/** Render a scalar or forward-FK column as a single string; empty string if missing. */
+function cellText(col: any, row: any): string {
+  if (col.resolvedTypeKind === "SCALAR") return row[col.name] ?? "";
+  if (col.resolvedTypeKind === "OBJECT" && !col.isConnection) {
+    return row[col.name]?.[col.displayField] ?? "";
+  }
+  return "";
+}
+
+/** Render a connection column as one line per edge — each line is a comma-joined flattening of the edge's node values. */
+function cellConnectionLines(col: any, row: any): string[] {
+  const edges: any[] = row[col.name]?.edges || [];
+  return edges.map((edge: any) =>
+    Object.values(edge.node || {})
+      .map((v) => (typeof v === "object" ? Object.values(v as any).join(": ") : v))
+      .join(", ")
+  );
+}
+
+// ================================================================
+// 5. PAGINATION
+//    Offset-based pagination using first/offset variables.
+//    `paginationOffset` lives in the state block at the top of the file.
+// ================================================================
 
 /** Current page derived from offset — UI display only */
 const current_page = computed(

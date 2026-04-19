@@ -1,4 +1,10 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+// Simple POC page switcher for the Cross-Page Introspection Query State test.
+// Each option renders a different schema-driven page (different ROOT).
+// The components unmount/remount on switch, which triggers their boot
+// watchers and reconcileFromStore() on the new ROOT's tree.
+const currentPage = ref<"tools" | "toolMetrics">("tools");
+</script>
 
 <template>
   <div id="viewport" class="container-fluid">
@@ -7,7 +13,29 @@
       <!-- LEFT-NAV -->
       <NavLeft />
       <!-- CONTENT -->
-      <Home3 />
+      <div class="col">
+        <!-- POC page switcher -->
+        <div class="mx-auto mb-3" style="max-width: 1400px">
+          <div class="btn-group" role="group">
+            <button
+              class="btn btn-sm"
+              :class="currentPage === 'tools' ? 'btn-primary' : 'btn-outline-primary'"
+              @click="currentPage = 'tools'"
+            >
+              Tools
+            </button>
+            <button
+              class="btn btn-sm"
+              :class="currentPage === 'toolMetrics' ? 'btn-primary' : 'btn-outline-primary'"
+              @click="currentPage = 'toolMetrics'"
+            >
+              Tool Metrics
+            </button>
+          </div>
+        </div>
+        <Home3 v-if="currentPage === 'tools'" />
+        <Home3ToolMetrics v-else />
+      </div>
     </div>
   </div>
 </template>

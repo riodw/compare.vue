@@ -12,6 +12,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     Home3: typeof import('./src/components/Home3.vue')['default']
+    Home3ToolMetrics: typeof import('./src/components/Home3ToolMetrics.vue')['default']
     Logo: typeof import('./src/components/Logo.vue')['default']
     NavLeft: typeof import('./src/components/NavLeft.vue')['default']
     NavTop: typeof import('./src/components/NavTop.vue')['default']

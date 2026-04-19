@@ -30,6 +30,12 @@ import {
 import { resolveApiBase } from "./ping_check";
 
 /**
+ * Pinia — cross-page introspection query state (spec-cross_page_introspection_query_state.md)
+ */
+import { createPinia } from "pinia";
+import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
+
+/**
  * Bootstrap
  */
 import "./assets/main.scss";
@@ -44,8 +50,12 @@ import "bootstrap";
   // Create the apollo client
   const apolloClient = new ApolloClient({ link: httpLink, cache });
 
+  const pinia = createPinia();
+  pinia.use(piniaPluginPersistedstate);
+
   const app = createApp(App);
   app.provide(DefaultApolloClient, apolloClient);
+  app.use(pinia);
   app.mount("#app");
   window.app = app;
 })();

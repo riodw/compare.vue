@@ -14,7 +14,7 @@ import { findLocalPath, activateLocalPath } from "@/utils/reconcileFilters";
 // ================================================================
 
 // The GraphQL root query field name — change this to point at a different model
-const ROOT = "tools";
+const ROOT = "toolMetrics";
 
 // Args that belong to the query envelope (pagination, filtering, sorting, logical operators)
 // rather than the model's own scalar fields. Used to separate model fields from control args.
@@ -855,11 +855,7 @@ function syncFiltersToStore() {
 
   // Drop stored entries that resolve to a local path not in the active set.
   queryState.filters = queryState.filters.filter((entry) => {
-    const localPath = findLocalPath(
-      filters.value,
-      filter_root.value,
-      entry.path
-    );
+    const localPath = findLocalPath(filters.value, filter_root.value, entry.path);
     if (!localPath) return true; // no local match — belongs to another page
     return activeLocalKeys.has(localPath.join("."));
   });
@@ -879,15 +875,10 @@ function reconcileFromStore() {
       const localPath = findLocalPath(
         filters.value,
         filter_root.value,
-        entry.path
+        entry.path,
       );
       if (localPath) {
-        activateLocalPath(
-          filters.value,
-          filter_root.value,
-          localPath,
-          entry.value
-        );
+        activateLocalPath(filters.value, filter_root.value, localPath, entry.value);
       }
     }
   } finally {
@@ -972,7 +963,7 @@ const unwatchFiltersReady = watch(
       unwatchFiltersReady();
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 watch(activeSortPaths, (paths) =>

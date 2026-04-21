@@ -507,16 +507,25 @@ async function initColumnsFrom(rootField: any) {
 // When the schema introspection returns, discover the filter, sort, and column types.
 // Filters and sorts are fire-and-forget; columns must finish before get() so the initial
 // query has an accurate edges.node selection.
-watch(q_r, (value) => {
-  const rootField = value?.__type?.fields?.find(
-    (field: any) => field.name === ROOT
-  );
-  const args = stripTypename(rootField?.args) || [];
+watch(
+  q_r,
+  (value) => {
+    const rootField = value?.__type?.fields?.find(
+      (field: any) => field.name === ROOT
+    );
+    const args = stripTypename(rootField?.args) || [];
 
-  initFiltersFrom(args);
-  initSortsFrom(args);
-  initColumnsFrom(rootField);
-});
+    initFiltersFrom(args);
+    initSortsFrom(args);
+    initColumnsFrom(rootField);
+  },
+  // `immediate: true` handles the component-remount case: on a second
+  // mount of any page, Apollo's cache-first delivery may populate `q_r`
+  // synchronously during setup — before this watcher is registered —
+  // so the normal "on change" trigger never fires. Immediate makes the
+  // callback run once at registration with whatever value `q_r` has.
+  { immediate: true },
+);
 
 // ================================================================
 // 2. UI LOGIC — Panel Builders

@@ -290,8 +290,17 @@ async function fetchType(
  * Each type and its inputFields get `on`/`value` UI state.
  * "filters" = filter introspection, "sorts" = order introspection.
  * All sibling branches at each level are fetched in parallel via Promise.all.
+ * A shared `visited` set prevents infinite recursion on cyclic graphs
+ * (e.g. ToolFilter -> BrandFilter -> ToolFilter).
  */
-async function introspect(typeName: string, mode: "filters" | "sorts") {
+async function introspect(
+  typeName: string,
+  mode: "filters" | "sorts",
+  visited = new Set<string>()
+) {
+  if (visited.has(typeName)) return;
+  visited.add(typeName);
+
   const inf = await fetchType(
     typeName,
     input_query,
@@ -315,11 +324,11 @@ async function introspect(typeName: string, mode: "filters" | "sorts") {
   if (existingIndex !== -1) Object.assign(store.value[existingIndex], inf);
   else store.value.push(inf);
 
-  // Recurse into all INPUT_OBJECT children in parallel
+  // Recurse into all INPUT_OBJECT children in parallel, sharing the visited set
   await Promise.all(
     inf.inputFields
       .filter((o: any) => o.type.kind === "INPUT_OBJECT")
-      .map((o: any) => introspect(o.type.name, mode))
+      .map((o: any) => introspect(o.type.name, mode, visited))
   );
 }
 
@@ -524,7 +533,7 @@ watch(
   // synchronously during setup — before this watcher is registered —
   // so the normal "on change" trigger never fires. Immediate makes the
   // callback run once at registration with whatever value `q_r` has.
-  { immediate: true },
+  { immediate: true }
 );
 
 // ================================================================

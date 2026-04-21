@@ -193,3 +193,9 @@ Vue Router emits route changes. The target page's `watch(q_r)` boot runs on firs
 ## Success criteria
 
 Manual test cases 1–5 in Phase 6 all pass. Test 6 (FK traversal) passes if the schema exposes the nested path; otherwise graceful drop is acceptable for this iteration.
+
+---
+
+## Relationship to other specs
+
+- [`docs/spec-introspection_schema_cache.md`](/Users/riordenweber/projects/compare.vue/docs/spec-introspection_schema_cache.md) — sharing the raw **introspected type definitions** (filter/sort/column trees themselves) across pages and across refresh. Uses a different Pinia store (`schemaCache`). That spec decides *what filters exist on this page*; this spec decides *which of them are turned on and what value they carry*. The two are orthogonal but composable — the combined effect is that refreshing a page restores both the menus and the active selections without any server fetches.

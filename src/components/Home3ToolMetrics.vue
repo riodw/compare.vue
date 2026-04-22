@@ -7,6 +7,7 @@ import {
 import { ref, watch, computed, nextTick, type Ref } from "vue";
 import { useApolloClient } from "@vue/apollo-composable";
 import { useQueryStateStore } from "@/stores/queryState";
+import { useSchemaCacheStore } from "@/stores/schemaCache";
 import { findLocalPath, activateLocalPath } from "@/utils/reconcileFilters";
 
 // ================================================================
@@ -92,6 +93,13 @@ const queryState = useQueryStateStore();
 // Guard flag: suppress store writes while reconciliation is actively setting
 // local filter state from the store (avoids feedback loops).
 let isReconciling = false;
+
+// ---- Shared Cross-Page Schema Cache ----
+// Pinia store holding pristine introspection results (filter/sort INPUT_OBJECTs,
+// column OBJECTs, connection→node mappings, per-ROOT metadata) so warm mounts
+// can rebuild their trees without any network introspection.
+// See docs/spec-introspection_schema_cache.md.
+const schemaCache = useSchemaCacheStore();
 
 // ================================================================
 // 1. DATA LOGIC — SCHEMA INTROSPECTION
@@ -264,12 +272,32 @@ const { resolveClient } = useApolloClient();
  * Returns the decorated type object ready for per-walker field decoration + store upsert,
  * or null if the type isn't found or has no fields of the expected shape.
  */
+/**
+ * Deep-clone a pristine cache entry into a fresh, freely-mutable plain object.
+ * JSON round-trip (vs. `structuredClone`) is required because Pinia wraps
+ * store state in reactive proxies whose internal slots aren't structured-
+ * cloneable. All cached data is JSON-safe (names, kinds, nested type refs)
+ * so this is lossless.
+ */
+function clonePristine<T>(x: T): T {
+  return JSON.parse(JSON.stringify(x));
+}
+
 async function fetchType(
   typeName: string,
   query: any,
   fieldsKey: "inputFields" | "fields",
   envelopeNames: string[]
 ): Promise<any | null> {
+  // 1) Persistent schema-cache hit — skip network entirely.
+  const bucket =
+    fieldsKey === "inputFields"
+      ? schemaCache.inputObjectTypes
+      : schemaCache.objectTypes;
+  const cached = bucket[typeName];
+  if (cached) return clonePristine(cached);
+
+  // 2-5) Network fetch + clean.
   const client = resolveClient();
   const { data } = await client.query({
     query: gql(jtg(query)),
@@ -282,7 +310,48 @@ async function fetchType(
   typeObj[fieldsKey] = typeObj[fieldsKey].filter(
     (f: any) => !envelopeNames.includes(f.name)
   );
+
+  // 6) Upsert pristine form into the schema cache.
+  if (fieldsKey === "inputFields") schemaCache.upsertInputType(typeObj);
+  else schemaCache.upsertObjectType(typeObj);
+
   return typeObj;
+}
+
+/**
+ * Turn a pristine INPUT_OBJECT into a decorated one by attaching the UI toggle
+ * state (`on` / `value`) on the type itself and on each inputField. Mutates and
+ * returns the input. Callers must pass a fresh/cloned object — `fetchType` does
+ * that for us on both cache hits and network fetches.
+ */
+function decorateInputType(t: any): any {
+  t.on = false;
+  t.value = "";
+  t.inputFields.forEach((o: any) => {
+    o.on = false;
+    o.value = "";
+  });
+  return t;
+}
+
+/**
+ * Turn a pristine OBJECT into a decorated one by attaching column UI metadata
+ * (`resolvedTypeName`, `resolvedTypeKind`, `isConnection`, `nodeType`,
+ * `displayField`, `on`). `isConnection` is set synchronously here; `nodeType`
+ * is filled in by the caller (async for a miss, cache lookup for a hit).
+ */
+function decorateObjectType(t: any): any {
+  for (const field of t.fields) {
+    const { innerName, innerKind } = unwrapType(field.type);
+    field.resolvedTypeName = innerName;
+    field.resolvedTypeKind = innerKind;
+    field.isConnection =
+      innerKind === "OBJECT" && !!innerName?.endsWith("Connection");
+    field.nodeType = null;
+    field.displayField = null;
+    field.on = false;
+  }
+  return t;
 }
 
 /**
@@ -300,32 +369,29 @@ async function introspect(
 ) {
   if (visited.has(typeName)) return;
   visited.add(typeName);
-  const inf = await fetchType(
+
+  const pristine = await fetchType(
     typeName,
     input_query,
     "inputFields",
     NON_MODEL_ARGS
   );
-  if (!inf) return;
+  if (!pristine) return;
 
+  const decorated = decorateInputType(pristine);
   const store = { filters, sorts }[mode];
 
-  // Initialize UI toggle state on the type and each field
-  inf.on = false;
-  inf.value = "";
-  inf.inputFields.forEach((o: any) => {
-    o.on = false;
-    o.value = "";
-  });
-
   // Upsert into the flat store (avoid duplicates on re-fetch)
-  const existingIndex = store.value.findIndex((f: any) => f.name === inf.name);
-  if (existingIndex !== -1) Object.assign(store.value[existingIndex], inf);
-  else store.value.push(inf);
+  const existingIndex = store.value.findIndex(
+    (f: any) => f.name === decorated.name
+  );
+  if (existingIndex !== -1)
+    Object.assign(store.value[existingIndex], decorated);
+  else store.value.push(decorated);
 
   // Recurse into all INPUT_OBJECT children in parallel, sharing the visited set
   await Promise.all(
-    inf.inputFields
+    decorated.inputFields
       .filter((o: any) => o.type.kind === "INPUT_OBJECT")
       .map((o: any) => introspect(o.type.name, mode, visited))
   );
@@ -365,10 +431,19 @@ function initSortsFrom(args: any[]) {
 /**
  * Resolve a Relay Connection type to its inner node type name.
  * Follows: ConnectionType → edges field → EdgeType → node field → NodeType
+ *
+ * The resolved name is memoized in `schemaCache.connectionNodeMap` so warm
+ * mounts skip both `client.query` calls entirely. Going through the cache
+ * here means partial cache hits (one page warms it, a sibling page arrives)
+ * also benefit.
  */
 async function resolveConnectionNodeType(
   connectionTypeName: string
 ): Promise<string | null> {
+  // Persistent cache hit
+  const cachedNode = schemaCache.connectionNodeMap[connectionTypeName];
+  if (cachedNode) return cachedNode;
+
   const client = resolveClient();
 
   // Step 1: Introspect the Connection type to find its "edges" field
@@ -401,7 +476,9 @@ async function resolveConnectionNodeType(
   );
   if (!nodeField) return null;
 
-  return unwrapType(nodeField.type).innerName;
+  const nodeName = unwrapType(nodeField.type).innerName;
+  if (nodeName) schemaCache.setConnectionNode(connectionTypeName, nodeName);
+  return nodeName;
 }
 
 /**
@@ -416,55 +493,77 @@ async function introspectColumns(
   if (visited.has(typeName)) return;
   visited.add(typeName);
 
-  const typeObj = await fetchType(
+  const pristine = await fetchType(
     typeName,
     columns_query,
     "fields",
     CONNECTION_FIELDS
   );
-  if (!typeObj) return;
+  if (!pristine) return;
 
-  // Process each field: resolve types, detect connections, extract metadata
-  for (const field of typeObj.fields) {
-    const { innerName, innerKind } = unwrapType(field.type);
-    field.resolvedTypeName = innerName;
-    field.resolvedTypeKind = innerKind;
+  const decorated = decorateObjectType(pristine);
 
-    field.isConnection = false;
-    field.nodeType = null;
-    field.displayField = null; // for FK OBJECTs: which sub-field to show (e.g. "name")
-
-    // Connection detection: if the resolved type ends with "Connection",
-    // this is a backward/many relationship using Relay's connection pattern.
-    // Resolve the inner node type so the user sees the real type, not the envelope.
-    if (innerKind === "OBJECT" && innerName?.endsWith("Connection")) {
-      field.isConnection = true;
-
-      // Resolve Connection → Edge → Node to get the actual node type name
-      const nodeTypeName = await resolveConnectionNodeType(innerName);
+  // Resolve connection node types on any fields flagged as connections. This
+  // may be a no-op on warm cache (cached via connectionNodeMap), or a pair of
+  // network calls on first discovery.
+  for (const field of decorated.fields) {
+    if (field.isConnection && field.resolvedTypeName) {
+      const nodeTypeName = await resolveConnectionNodeType(
+        field.resolvedTypeName
+      );
       if (nodeTypeName) field.nodeType = nodeTypeName;
     }
-
-    field.on = false; // all fields start inactive; watcher initializes defaults
   }
 
   // Upsert into the flat store
   const existingIndex = columns.value.findIndex(
-    (c: any) => c.name === typeObj.name
+    (c: any) => c.name === decorated.name
   );
   if (existingIndex !== -1)
-    Object.assign(columns.value[existingIndex], typeObj);
-  else columns.value.push(typeObj);
+    Object.assign(columns.value[existingIndex], decorated);
+  else columns.value.push(decorated);
 
   // Recurse into OBJECT children in parallel
   await Promise.all(
-    typeObj.fields
+    decorated.fields
       .filter((f: any) => f.resolvedTypeKind === "OBJECT")
       .map((f: any) => {
         const target = f.isConnection ? f.nodeType : f.resolvedTypeName;
         return target ? introspectColumns(target, visited) : Promise.resolve();
       })
   );
+}
+
+/**
+ * Apply default column UI state on the root node type:
+ *   - all SCALAR fields are turned on
+ *   - each forward FK OBJECT field gets a default `displayField` (first scalar of the related type)
+ *   - `column_order` is seeded with the currently-on root fields
+ * Shared by the cold-introspection path (`initColumnsFrom`) and the warm-cache
+ * hydration path (`hydrateFromCache`) so both produce identical default state.
+ */
+function applyDefaultColumns(nodeTypeName: string) {
+  const rootType = columns.value.find((c: any) => c.name === nodeTypeName);
+  if (!rootType?.fields) return;
+  for (const field of rootType.fields) {
+    if (field.resolvedTypeKind === "SCALAR") field.on = true;
+    if (
+      field.resolvedTypeKind === "OBJECT" &&
+      !field.isConnection &&
+      field.resolvedTypeName
+    ) {
+      const related = columns.value.find(
+        (c: any) => c.name === field.resolvedTypeName
+      );
+      const firstScalar = related?.fields?.find(
+        (rf: any) => rf.resolvedTypeKind === "SCALAR"
+      );
+      if (firstScalar) field.displayField = firstScalar.name;
+    }
+  }
+  column_order.value = rootType.fields
+    .filter((f: any) => f.on)
+    .map((f: any) => f.name);
 }
 
 /**
@@ -481,57 +580,181 @@ async function initColumnsFrom(rootField: any) {
   column_root.value = nodeTypeName;
   await introspectColumns(nodeTypeName);
 
-  // Default: turn on all scalar fields of the root node type
-  const rootType = columns.value.find((c: any) => c.name === nodeTypeName);
-  if (rootType?.fields) {
-    for (const field of rootType.fields) {
-      if (field.resolvedTypeKind === "SCALAR") field.on = true;
-      // Default displayField for FK columns to the first scalar child
-      if (
-        field.resolvedTypeKind === "OBJECT" &&
-        !field.isConnection &&
-        field.resolvedTypeName
-      ) {
-        const related = columns.value.find(
-          (c: any) => c.name === field.resolvedTypeName
-        );
-        const firstScalar = related?.fields?.find(
-          (rf: any) => rf.resolvedTypeKind === "SCALAR"
-        );
-        if (firstScalar) field.displayField = firstScalar.name;
-      }
-    }
-    column_order.value = rootType.fields
-      .filter((f: any) => f.on)
-      .map((f: any) => f.name);
-  }
+  applyDefaultColumns(nodeTypeName);
   get();
+
+  // With all three roots now known, snapshot them into the schema cache so
+  // the next mount of any page with this ROOT skips introspection entirely.
+  // filter_root / sort_root / sort_var_type were set synchronously by
+  // initFiltersFrom / initSortsFrom before this async function proceeded.
+  schemaCache.setRootMeta(ROOT, {
+    filterRoot: filter_root.value,
+    sortRoot: sort_root.value,
+    sortVarType: sort_var_type.value,
+    columnRoot: column_root.value,
+  });
 }
 
 // ----------------------------------------------------------------
-// 1f. Boot watcher
+// 1f. Warm-cache hydration
+// ----------------------------------------------------------------
+
+/**
+ * Walk the cached INPUT_OBJECT graph starting from `rootName`, deep-cloning
+ * every reachable pristine entry and decorating it into `store`. Cycles are
+ * broken by `visited`. Purely synchronous — no network calls.
+ */
+function hydrateInputTree(
+  rootName: string,
+  store: Ref<any[]>,
+  visited = new Set<string>()
+) {
+  if (visited.has(rootName)) return;
+  visited.add(rootName);
+
+  const pristine = schemaCache.inputObjectTypes[rootName];
+  if (!pristine) return;
+
+  const decorated = decorateInputType(clonePristine(pristine));
+  const existingIndex = store.value.findIndex(
+    (f: any) => f.name === decorated.name
+  );
+  if (existingIndex !== -1)
+    Object.assign(store.value[existingIndex], decorated);
+  else store.value.push(decorated);
+
+  for (const field of decorated.inputFields) {
+    if (field.type?.kind === "INPUT_OBJECT" && field.type.name) {
+      hydrateInputTree(field.type.name, store, visited);
+    }
+  }
+}
+
+/**
+ * Walk the cached OBJECT graph starting from `rootName`, deep-cloning every
+ * reachable pristine entry, decorating it, and filling `nodeType` for any
+ * connection fields using `schemaCache.connectionNodeMap`. Synchronous.
+ */
+function hydrateColumnTree(rootName: string, visited = new Set<string>()) {
+  if (visited.has(rootName)) return;
+  visited.add(rootName);
+
+  const pristine = schemaCache.objectTypes[rootName];
+  if (!pristine) return;
+
+  const decorated = decorateObjectType(clonePristine(pristine));
+
+  // Fill in connection node names from the cached map.
+  for (const field of decorated.fields) {
+    if (field.isConnection && field.resolvedTypeName) {
+      field.nodeType =
+        schemaCache.connectionNodeMap[field.resolvedTypeName] ?? null;
+    }
+  }
+
+  const existingIndex = columns.value.findIndex(
+    (c: any) => c.name === decorated.name
+  );
+  if (existingIndex !== -1)
+    Object.assign(columns.value[existingIndex], decorated);
+  else columns.value.push(decorated);
+
+  for (const field of decorated.fields) {
+    if (field.resolvedTypeKind === "OBJECT") {
+      const target = field.isConnection ? field.nodeType : field.resolvedTypeName;
+      if (target) hydrateColumnTree(target, visited);
+    }
+  }
+}
+
+/**
+ * Rebuild this page's filter / sort / column trees from the persisted schema
+ * cache without any network calls. Returns true on a full cache hit (the
+ * normal introspection path should be skipped), false on a miss.
+ *
+ * Requires: `schemaCache.roots[rootKey]` present AND the three reachable type
+ * graphs each have their root entry cached. A partial cache is treated as a
+ * miss so the full introspection can refill what's stale.
+ */
+function hydrateFromCache(rootKey: string): boolean {
+  const meta = schemaCache.roots[rootKey];
+  if (!meta) return false;
+
+  // Bail if the referenced roots aren't in the type dictionaries.
+  if (
+    !schemaCache.inputObjectTypes[meta.filterRoot] ||
+    !schemaCache.inputObjectTypes[meta.sortRoot] ||
+    !schemaCache.objectTypes[meta.columnRoot]
+  ) {
+    return false;
+  }
+
+  filter_root.value = meta.filterRoot;
+  sort_root.value = meta.sortRoot;
+  sort_var_type.value = meta.sortVarType;
+  column_root.value = meta.columnRoot;
+
+  hydrateInputTree(meta.filterRoot, filters);
+  hydrateInputTree(meta.sortRoot, sorts);
+  hydrateColumnTree(meta.columnRoot);
+
+  applyDefaultColumns(meta.columnRoot);
+  // `get()` reads computeds (`orderedColumns`, `orderedSortPaths`) that are
+  // declared later in setup. On a warm cache, this watcher fires synchronously
+  // during setup, BEFORE those computeds are initialized — calling get()
+  // directly would throw a TDZ ReferenceError. Queue a microtask so get()
+  // runs after setup completes.
+  queueMicrotask(() => get());
+  return true;
+}
+
+// ----------------------------------------------------------------
+// 1g. Boot watcher
 // ----------------------------------------------------------------
 
 // When the schema introspection returns, discover the filter, sort, and column types.
 // Filters and sorts are fire-and-forget; columns must finish before get() so the initial
-// query has an accurate edges.node selection.
+// query has an accurate edges.node selection. On a warm schema cache, both paths are
+// skipped entirely — `hydrateFromCache` populates the local trees from localStorage
+// without issuing any network calls.
+//
+// A module-scoped `booted` guard prevents double-boot when both the warm
+// hydration path fires synchronously AND q_r later emits real data.
+let booted = false;
 watch(
   q_r,
   (value) => {
+    if (booted) return;
+
+    // Try the persistent schema cache first. On hit, we're done — no
+    // introspection required.
+    if (hydrateFromCache(ROOT)) {
+      booted = true;
+      return;
+    }
+
+    // Cache miss — fall through to the cold-introspection path. On the very
+    // first watcher fire (immediate: true), `value` may still be undefined;
+    // `rootField` will be undefined and each init fn will no-op until q_r
+    // emits real data and the watcher fires again.
     const rootField = value?.__type?.fields?.find(
       (field: any) => field.name === ROOT
     );
-    const args = stripTypename(rootField?.args) || [];
+    if (!rootField) return;
 
+    const args = stripTypename(rootField?.args) || [];
     initFiltersFrom(args);
     initSortsFrom(args);
     initColumnsFrom(rootField);
+    booted = true;
   },
   // `immediate: true` handles the component-remount case: on a second
   // mount of any page, Apollo's cache-first delivery may populate `q_r`
   // synchronously during setup — before this watcher is registered —
   // so the normal "on change" trigger never fires. Immediate makes the
   // callback run once at registration with whatever value `q_r` has.
+  // Combined with `hydrateFromCache`, this also makes warm mounts render
+  // instantly from localStorage.
   { immediate: true }
 );
 
@@ -981,12 +1204,30 @@ function getSubFields(col: any) {
 // One-shot reconciliation: pull stored filters into the local tree the first
 // time filter introspection finishes. Applies to initial mount AND to any
 // remount (e.g. when nav switches between Tools/ToolMetrics pages).
+//
+// Two subtle TDZ hazards this handles:
+//   1. On a warm schema-cache hit, `filters.value.length > 0` already when
+//      this watcher registers. `immediate: true` fires the callback DURING
+//      the `watch()` call — before the `const unwatchFiltersReady` binding
+//      is established — so the callback must not reference that const
+//      synchronously.
+//   2. `reconcileFromStore` ends with `get()`, which reads `q` (declared in
+//      §3b, later in setup). The reconcile body must defer until after
+//      setup completes.
+// Solution: a flag to guard against multiple fires before the microtask
+// runs, and a queueMicrotask that both unwatches and reconciles only after
+// setup finishes and all `const` bindings are live.
+let filtersReconciled = false;
 const unwatchFiltersReady = watch(
   () => filters.value.length,
   (len) => {
+    if (filtersReconciled) return;
     if (len > 0 && filter_root.value) {
-      reconcileFromStore();
-      unwatchFiltersReady();
+      filtersReconciled = true;
+      queueMicrotask(() => {
+        unwatchFiltersReady();
+        reconcileFromStore();
+      });
     }
   },
   { immediate: true }

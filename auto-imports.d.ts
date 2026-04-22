@@ -232,6 +232,7 @@ declare global {
   const useRefHistory: typeof import('@vueuse/core').useRefHistory
   const useResizeObserver: typeof import('@vueuse/core').useResizeObserver
   const useSSRWidth: typeof import('@vueuse/core').useSSRWidth
+  const useSchemaCacheStore: typeof import('./src/stores/schemaCache').useSchemaCacheStore
   const useScreenOrientation: typeof import('@vueuse/core').useScreenOrientation
   const useScreenSafeArea: typeof import('@vueuse/core').useScreenSafeArea
   const useScriptTag: typeof import('@vueuse/core').useScriptTag
@@ -308,6 +309,9 @@ declare global {
   // @ts-ignore
   export type { CanonicalFilter } from './src/stores/queryState'
   import('./src/stores/queryState')
+  // @ts-ignore
+  export type { PristineInputType, PristineObjectType, RootMeta } from './src/stores/schemaCache'
+  import('./src/stores/schemaCache')
 }
 
 // for vue template auto import
@@ -541,6 +545,7 @@ declare module 'vue' {
     readonly useRefHistory: UnwrapRef<typeof import('@vueuse/core')['useRefHistory']>
     readonly useResizeObserver: UnwrapRef<typeof import('@vueuse/core')['useResizeObserver']>
     readonly useSSRWidth: UnwrapRef<typeof import('@vueuse/core')['useSSRWidth']>
+    readonly useSchemaCacheStore: UnwrapRef<typeof import('./src/stores/schemaCache')['useSchemaCacheStore']>
     readonly useScreenOrientation: UnwrapRef<typeof import('@vueuse/core')['useScreenOrientation']>
     readonly useScreenSafeArea: UnwrapRef<typeof import('@vueuse/core')['useScreenSafeArea']>
     readonly useScriptTag: UnwrapRef<typeof import('@vueuse/core')['useScriptTag']>
